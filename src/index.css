@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,44 +6,50 @@
 
 @layer base {
   :root {
-    --background: 210 25% 3%;
-    --foreground: 200 20% 95%;
+    --background: 210 33% 97%;
+    --foreground: 210 29% 15%;
 
-    --card: 210 20% 7%;
-    --card-foreground: 200 20% 95%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 29% 15%;
 
-    --popover: 210 20% 7%;
-    --popover-foreground: 200 20% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 29% 15%;
 
-    --primary: 195 80% 55%;
-    --primary-foreground: 210 25% 3%;
+    --primary: 210 50% 24%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 15% 12%;
-    --secondary-foreground: 200 20% 85%;
+    --secondary: 212 55% 45%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 15% 10%;
-    --muted-foreground: 210 10% 50%;
+    --muted: 210 20% 93%;
+    --muted-foreground: 210 10% 45%;
 
-    --accent: 195 70% 40%;
-    --accent-foreground: 200 20% 95%;
+    --accent: 212 55% 45%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 4 72% 46%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 210 15% 15%;
-    --input: 210 15% 15%;
-    --ring: 195 80% 55%;
+    --success: 152 48% 27%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 24 75% 52%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 210 50% 24%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 210 25% 3%;
-    --sidebar-foreground: 200 20% 85%;
-    --sidebar-primary: 195 80% 55%;
-    --sidebar-primary-foreground: 210 25% 3%;
-    --sidebar-accent: 210 15% 12%;
-    --sidebar-accent-foreground: 200 20% 85%;
-    --sidebar-border: 210 15% 15%;
-    --sidebar-ring: 195 80% 55%;
+    --sidebar-background: 210 50% 24%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 210 50% 24%;
+    --sidebar-accent: 210 40% 30%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 210 40% 30%;
+    --sidebar-ring: 212 55% 45%;
   }
 }
 
@@ -53,7 +59,13 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Space Grotesk', sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
