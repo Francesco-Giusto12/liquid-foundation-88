@@ -14,6 +14,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
+import NewTransaction from "./pages/NewTransaction";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound";
 
@@ -44,7 +45,7 @@ const App = () => (
             <Route path="/accounts" element={<ProtectedPage><Accounts /></ProtectedPage>} />
             <Route path="/accounts/:id" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
             <Route path="/transactions" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
-            <Route path="/transactions/new" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
+            <Route path="/transactions/new" element={<ProtectedPage><NewTransaction /></ProtectedPage>} />
             <Route path="/budgets" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
             <Route path="/reports" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
             <Route path="/settings" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
