@@ -64,6 +64,101 @@ export type Database = {
           },
         ]
       }
+      alert_history: {
+        Row: {
+          alert_code: string
+          created_at: string | null
+          id: string
+          period_start: string
+          seen_at: string | null
+          seen_value: number | null
+          status: string
+          threshold: number | null
+          trigger_value: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          alert_code: string
+          created_at?: string | null
+          id?: string
+          period_start: string
+          seen_at?: string | null
+          seen_value?: number | null
+          status?: string
+          threshold?: number | null
+          trigger_value?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          alert_code?: string
+          created_at?: string | null
+          id?: string
+          period_start?: string
+          seen_at?: string | null
+          seen_value?: number | null
+          status?: string
+          threshold?: number | null
+          trigger_value?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alert_thresholds: {
+        Row: {
+          alert_code: string
+          category_id: string | null
+          created_at: string | null
+          id: string
+          threshold: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          alert_code: string
+          category_id?: string | null
+          created_at?: string | null
+          id?: string
+          threshold: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          alert_code?: string
+          category_id?: string | null
+          created_at?: string | null
+          id?: string
+          threshold?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_thresholds_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_thresholds_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -159,6 +254,7 @@ export type Database = {
           icon: string | null
           id: string
           is_default: boolean | null
+          is_imponibile: boolean
           name: string
           type: string
           user_id: string
@@ -168,6 +264,7 @@ export type Database = {
           icon?: string | null
           id?: string
           is_default?: boolean | null
+          is_imponibile?: boolean
           name: string
           type: string
           user_id: string
@@ -177,6 +274,7 @@ export type Database = {
           icon?: string | null
           id?: string
           is_default?: boolean | null
+          is_imponibile?: boolean
           name?: string
           type?: string
           user_id?: string
@@ -184,6 +282,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "categories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      period_balances: {
+        Row: {
+          balance_start: number
+          created_at: string | null
+          id: string
+          period_start: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          balance_start: number
+          created_at?: string | null
+          id?: string
+          period_start: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          balance_start?: number
+          created_at?: string | null
+          id?: string
+          period_start?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "period_balances_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -218,15 +351,60 @@ export type Database = {
         }
         Relationships: []
       }
+      tax_regime_history: {
+        Row: {
+          aliquota: number
+          created_at: string | null
+          id: string
+          regime_key: string
+          regime_label: string | null
+          user_id: string
+          valid_from: string
+          valid_to: string | null
+        }
+        Insert: {
+          aliquota: number
+          created_at?: string | null
+          id?: string
+          regime_key: string
+          regime_label?: string | null
+          user_id: string
+          valid_from: string
+          valid_to?: string | null
+        }
+        Update: {
+          aliquota?: number
+          created_at?: string | null
+          id?: string
+          regime_key?: string
+          regime_label?: string | null
+          user_id?: string
+          valid_from?: string
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_regime_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           account_id: string
           amount: number
+          categorized_at: string | null
           category_id: string | null
           created_at: string | null
           date: string
           description: string | null
           id: string
+          import_hash: string | null
+          is_categorized: boolean
+          is_imponibile: boolean
           is_recurring: boolean | null
           merchant: string | null
           notes: string | null
@@ -239,11 +417,15 @@ export type Database = {
         Insert: {
           account_id: string
           amount: number
+          categorized_at?: string | null
           category_id?: string | null
           created_at?: string | null
           date: string
           description?: string | null
           id?: string
+          import_hash?: string | null
+          is_categorized?: boolean
+          is_imponibile?: boolean
           is_recurring?: boolean | null
           merchant?: string | null
           notes?: string | null
@@ -256,11 +438,15 @@ export type Database = {
         Update: {
           account_id?: string
           amount?: number
+          categorized_at?: string | null
           category_id?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
           id?: string
+          import_hash?: string | null
+          is_categorized?: boolean
+          is_imponibile?: boolean
           is_recurring?: boolean | null
           merchant?: string | null
           notes?: string | null
@@ -299,7 +485,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_aliquota_for_period: {
+        Args: { p_period_start: string; p_user_id: string }
+        Returns: number
+      }
+      get_period_balance_start: {
+        Args: { p_period_start: string; p_user_id: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
