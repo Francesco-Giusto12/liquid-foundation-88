@@ -1,4 +1,4 @@
-import { LayoutDashboard, Landmark, ArrowLeftRight, Target, BarChart3, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Landmark, ArrowLeftRight, Target, BarChart3, Settings, LogOut, Upload } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ const mainItems = [
   { title: "Transactions", url: "/transactions", icon: ArrowLeftRight },
   { title: "Budgets", url: "/budgets", icon: Target },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Import CSV", url: "/import", icon: Upload },
 ];
 
 const settingsItems = [

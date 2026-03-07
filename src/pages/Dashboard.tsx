@@ -2,18 +2,33 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { calculateLiquidity } from "@/lib/edge-functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
-import { Plus, TrendingUp, TrendingDown, DollarSign, ArrowUpDown } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, ShieldAlert, AlertTriangle, Info } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
 
 export default function Dashboard() {
   const { user } = useAuth();
+
+  const now = new Date();
+  const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
+  const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
+
+  // Liquidity calculation
+  const { data: liquidityData, isLoading: loadingLiquidity } = useQuery({
+    queryKey: ["liquidity", monthStart],
+    queryFn: async () => {
+      const res = await calculateLiquidity(monthStart);
+      return res.data;
+    },
+    enabled: !!user,
+  });
 
   const { data: accounts, isLoading: loadingAccounts } = useQuery({
     queryKey: ["accounts"],
@@ -24,10 +39,6 @@ export default function Dashboard() {
     },
     enabled: !!user,
   });
-
-  const now = new Date();
-  const monthStart = startOfMonth(now).toISOString().split("T")[0];
-  const monthEnd = endOfMonth(now).toISOString().split("T")[0];
 
   const { data: monthlyTransactions, isLoading: loadingMonthly } = useQuery({
     queryKey: ["transactions-monthly", monthStart, monthEnd],
@@ -57,12 +68,11 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // Cash flow chart data (last 6 months)
   const { data: chartData, isLoading: loadingChart } = useQuery({
     queryKey: ["cashflow-chart"],
     queryFn: async () => {
       const sixMonthsAgo = subMonths(now, 5);
-      const start = startOfMonth(sixMonthsAgo).toISOString().split("T")[0];
+      const start = format(startOfMonth(sixMonthsAgo), "yyyy-MM-dd");
       const { data, error } = await supabase
         .from("transactions")
         .select("amount, type, date")
@@ -142,13 +152,70 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Liquidity Warnings */}
+      {liquidityData && (
+        <div className="space-y-2">
+          {liquidityData.alpha === null && (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted px-4 py-3 text-sm">
+              <Info className="h-4 w-4 text-secondary shrink-0" />
+              <span>Configura il regime fiscale per calcolare la liquidità reale</span>
+            </div>
+          )}
+          {liquidityData.lr_negative && (
+            <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              <ShieldAlert className="h-4 w-4 shrink-0" />
+              <span>Liquidità reale negativa — l'accantonamento fiscale supera il saldo disponibile</span>
+            </div>
+          )}
+          {liquidityData.quality_warning && (
+            <div className="flex items-center gap-2 rounded-lg bg-[hsl(var(--warning))]/10 border border-[hsl(var(--warning))]/30 px-4 py-3 text-sm text-[hsl(var(--warning))]">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>{liquidityData.uncat_count} entrate non categorizzate — accantonamento potrebbe essere sottostimato</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard title="Total Balance" value={totalBalance} icon={<DollarSign className="h-4 w-4" />} loading={loading} />
-        <KpiCard title="Monthly Income" value={monthlyIncome} icon={<TrendingUp className="h-4 w-4" />} loading={loading} color="text-success" />
+        <KpiCard title="Monthly Income" value={monthlyIncome} icon={<TrendingUp className="h-4 w-4" />} loading={loading} color="text-[hsl(var(--success))]" />
         <KpiCard title="Monthly Expenses" value={monthlyExpenses} icon={<TrendingDown className="h-4 w-4" />} loading={loading} color="text-destructive" />
-        <KpiCard title="Net Cash Flow" value={netCashFlow} icon={<ArrowUpDown className="h-4 w-4" />} loading={loading} color={netCashFlow >= 0 ? "text-success" : "text-destructive"} />
+        <KpiCard title="Net Cash Flow" value={netCashFlow} icon={<ArrowUpDown className="h-4 w-4" />} loading={loading} color={netCashFlow >= 0 ? "text-[hsl(var(--success))]" : "text-destructive"} />
       </div>
+
+      {/* Liquidity KPI Cards */}
+      {liquidityData && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <KpiCard
+            title="Saldo Corrente"
+            value={liquidityData.bt}
+            icon={<DollarSign className="h-4 w-4" />}
+            loading={loadingLiquidity}
+          />
+          <KpiCard
+            title="Accantonamento Fiscale"
+            value={liquidityData.f}
+            icon={<ShieldAlert className="h-4 w-4" />}
+            loading={loadingLiquidity}
+          />
+          <Card className={liquidityData.lr < 0 ? "border-destructive bg-destructive/5" : ""}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground font-medium">Liquidità Reale</span>
+                <span className="text-muted-foreground"><ShieldAlert className="h-4 w-4" /></span>
+              </div>
+              {loadingLiquidity ? (
+                <Skeleton className="h-7 w-24" />
+              ) : (
+                <p className={`text-xl font-bold tabular-nums ${liquidityData.lr < 0 ? "text-destructive" : "text-[hsl(var(--success))]"}`}>
+                  {formatCurrency(liquidityData.lr)}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Cash Flow Chart */}
       <Card>
@@ -214,7 +281,7 @@ export default function Dashboard() {
                         <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
                       </div>
                     </div>
-                    <span className={`text-sm font-medium tabular-nums ${t.type === "income" ? "text-success" : "text-destructive"}`}>
+                    <span className={`text-sm font-medium tabular-nums ${t.type === "income" ? "text-[hsl(var(--success))]" : "text-destructive"}`}>
                       {t.type === "income" ? "+" : "-"}{formatCurrency(Number(t.amount))}
                     </span>
                   </div>
