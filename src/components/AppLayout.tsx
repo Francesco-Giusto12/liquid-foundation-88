@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { MobileNav } from "@/components/MobileNav";
+import { AlertsBell } from "@/components/AlertsBell";
 import { useAuth } from "@/hooks/useAuth";
 import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
 import {
@@ -24,9 +25,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <AppSidebar />
         </div>
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-12 flex items-center border-b bg-card px-4 sticky top-0 z-40">
-            <SidebarTrigger className="hidden md:flex" />
-            <span className="md:hidden font-bold text-primary text-lg">CashFlowVR</span>
+          <header className="h-12 flex items-center justify-between border-b bg-card px-4 sticky top-0 z-40">
+            <div className="flex items-center">
+              <SidebarTrigger className="hidden md:flex" />
+              <span className="md:hidden font-bold text-primary text-lg">CashFlowVR</span>
+            </div>
+            <AlertsBell />
           </header>
           <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">
             {children}
