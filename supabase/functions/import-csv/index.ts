@@ -270,6 +270,33 @@ Deno.serve(async (req: Request) => {
 
     // ── Import reale (confirm = true) ───────────────────────
 
+    // Resolve default account for the user
+    let { data: accounts } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .limit(1);
+
+    let accountId: string;
+
+    if (accounts && accounts.length > 0) {
+      accountId = accounts[0].id;
+    } else {
+      // Create a default account for CSV imports
+      const { data: newAccount, error: accErr } = await supabase
+        .from("accounts")
+        .insert({ user_id: user.id, name: "Conto principale", type: "checking" })
+        .select("id")
+        .single();
+
+      if (accErr || !newAccount) {
+        console.error("Failed to create default account:", accErr);
+        return errorResponse(500, "Cannot resolve account for import");
+      }
+      accountId = newAccount.id;
+    }
+
     // Controlla duplicati in batch
     const hashes = parsed.map(r => r.import_hash);
     const { data: existingHashes } = await supabase
@@ -290,12 +317,12 @@ Deno.serve(async (req: Request) => {
     for (let i = 0; i < toInsert.length; i += BATCH) {
       const batch = toInsert.slice(i, i + BATCH).map(r => ({
         user_id:     user.id,
+        account_id:  accountId,
         amount:      r.amount,
         date:        r.date,
         description: r.description,
         import_hash: r.import_hash,
         type:        r.amount > 0 ? "income" : "expense",
-        // account_id NON impostato: l'utente deve associarlo post-import
       }));
 
       const { error: insertError } = await supabase
@@ -303,7 +330,7 @@ Deno.serve(async (req: Request) => {
         .insert(batch);
 
       if (insertError) {
-        console.error("Insert batch error:", insertError);
+        console.error("Insert batch error:", JSON.stringify(insertError));
       } else {
         imported_count += batch.length;
       }
