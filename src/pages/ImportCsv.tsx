@@ -58,6 +58,16 @@ export default function ImportCsv() {
       } else if (res.success) {
         setPreview(res);
         setNeedsMapping(false);
+        // Store mapping from preview for use in confirm step
+        if (res.mapping) {
+          setMapping({
+            date_col: res.mapping.date_col || "",
+            amount_col: res.mapping.amount_col || "",
+            desc_col: res.mapping.desc_col || "",
+            ...(res.mapping.credit_col ? { credit_col: res.mapping.credit_col } : {}),
+            ...(res.mapping.debit_col ? { debit_col: res.mapping.debit_col } : {}),
+          });
+        }
       }
     } catch { toast.error("Errore durante l'anteprima"); }
     setLoading(false);
@@ -67,8 +77,10 @@ export default function ImportCsv() {
     if (!file) return;
     setLoading(true);
     try {
-      const m = needsMapping ? mapping : preview?.mapping;
+      const m = Object.keys(mapping).length > 0 ? mapping : preview?.mapping;
+      console.log("[ImportCsv] confirm call - mapping:", JSON.stringify(m));
       const res = await importCsv(file, true, m ?? undefined);
+      console.log("[ImportCsv] confirm response:", JSON.stringify(res));
       if (res.success) {
         setResult(res);
         setPreview(null);
@@ -79,7 +91,7 @@ export default function ImportCsv() {
         calculateLiquidity(period).then(() => queryClient.invalidateQueries({ queryKey: ["liquidity"] }));
         evaluateAlerts(period).then(() => queryClient.invalidateQueries({ queryKey: ["alerts"] }));
       }
-    } catch { toast.error("Errore durante l'importazione"); }
+    } catch (err) { console.error("[ImportCsv] confirm error:", err); toast.error("Errore durante l'importazione"); }
     setLoading(false);
   };
 
