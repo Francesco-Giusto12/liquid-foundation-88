@@ -522,7 +522,7 @@ function buildReportHTML(d: any): string {
   </table>
 
   <div class="footer">
-    CashFlowVR — Report generato il ${d.generatedAt}  · 
+    Liquidò — Report generato il ${d.generatedAt}  · 
     Periodo ${esc(d.periodLabel)}  · 
     Documento riservato — uso personale
   </div>
