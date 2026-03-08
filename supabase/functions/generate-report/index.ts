@@ -272,7 +272,7 @@ function buildReportHTML(d: any): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>CashFlowVR — Report ${d.periodLabel}</title>
+  <title>Liquidò — Report ${d.periodLabel}</title>
   <style>
     /* ── Reset & base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
