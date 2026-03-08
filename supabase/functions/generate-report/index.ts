@@ -198,7 +198,7 @@ Deno.serve(async (req: Request) => {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/html; charset=utf-8",
-        "Content-Disposition": `inline; filename="cashflowvr-report-${normalizedPeriod.slice(0,7)}.html"`,
+        "Content-Disposition": `inline; filename="liquido-report-${normalizedPeriod.slice(0,7)}.html"`,
       },
       status: 200,
     });
@@ -272,7 +272,7 @@ function buildReportHTML(d: any): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>CashFlowVR — Report ${d.periodLabel}</title>
+  <title>Liquidò — Report ${d.periodLabel}</title>
   <style>
     /* ── Reset & base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -388,7 +388,7 @@ function buildReportHTML(d: any): string {
 
   <div class="header">
     <div>
-      <h1>CASHFLOWVR — REPORT MENSILE</h1>
+      <h1>LIQUIDÒ — REPORT MENSILE</h1>
       <p style="font-size:15px;color:#2E75B6;margin-top:4px">${esc(d.periodLabel.toUpperCase())}</p>
       <p style="font-size:12px;color:#666;margin-top:4px">
         ${esc(d.profile?.full_name ?? "")}  · 
@@ -522,7 +522,7 @@ function buildReportHTML(d: any): string {
   </table>
 
   <div class="footer">
-    CashFlowVR — Report generato il ${d.generatedAt}  · 
+    Liquidò — Report generato il ${d.generatedAt}  · 
     Periodo ${esc(d.periodLabel)}  · 
     Documento riservato — uso personale
   </div>
