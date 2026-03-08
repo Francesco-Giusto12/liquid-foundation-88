@@ -388,7 +388,7 @@ function buildReportHTML(d: any): string {
 
   <div class="header">
     <div>
-      <h1>CASHFLOWVR — REPORT MENSILE</h1>
+      <h1>LIQUIDÒ — REPORT MENSILE</h1>
       <p style="font-size:15px;color:#2E75B6;margin-top:4px">${esc(d.periodLabel.toUpperCase())}</p>
       <p style="font-size:12px;color:#666;margin-top:4px">
         ${esc(d.profile?.full_name ?? "")}  · 
