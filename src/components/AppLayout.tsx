@@ -28,7 +28,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <header className="h-12 flex items-center justify-between border-b bg-card px-4 sticky top-0 z-40">
             <div className="flex items-center">
               <SidebarTrigger className="hidden md:flex" />
-              <span className="md:hidden font-bold text-primary text-lg">CashFlowVR</span>
+              <span className="md:hidden font-bold text-primary text-lg">Liquidò</span>
             </div>
             <AlertsBell />
           </header>

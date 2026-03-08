@@ -68,7 +68,7 @@ export default function Register() {
             <DollarSign className="h-6 w-6 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-          <CardDescription>Start managing your finances with CashFlowVR</CardDescription>
+          <CardDescription>Start managing your finances with Liquidò</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

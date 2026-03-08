@@ -50,7 +50,7 @@ export default function Login() {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
             <DollarSign className="h-6 w-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold">CashFlowVR</CardTitle>
+          <CardTitle className="text-2xl font-bold">Liquidò</CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
         <CardContent>

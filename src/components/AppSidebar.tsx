@@ -41,7 +41,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/60">
-            {!collapsed && <span className="font-bold text-sidebar-primary text-base">CashFlowVR</span>}
+            {!collapsed && <span className="font-bold text-sidebar-primary text-base">Liquidò</span>}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
