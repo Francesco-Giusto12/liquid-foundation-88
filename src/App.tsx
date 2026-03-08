@@ -17,6 +17,8 @@ import Accounts from "./pages/Accounts";
 import NewTransaction from "./pages/NewTransaction";
 import ImportCsv from "./pages/ImportCsv";
 import Reports from "./pages/Reports";
+import Transactions from "./pages/Transactions";
+import Settings from "./pages/Settings";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound";
 
