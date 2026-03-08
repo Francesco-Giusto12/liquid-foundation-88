@@ -48,7 +48,7 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedPage><Dashboard /></ProtectedPage>} />
             <Route path="/accounts" element={<ProtectedPage><Accounts /></ProtectedPage>} />
             <Route path="/accounts/:id" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
-            <Route path="/transactions" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
+            <Route path="/transactions" element={<ProtectedPage><Transactions /></ProtectedPage>} />
             <Route path="/transactions/new" element={<ProtectedPage><NewTransaction /></ProtectedPage>} />
             <Route path="/import" element={<ProtectedPage><ImportCsv /></ProtectedPage>} />
             <Route path="/budgets" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
