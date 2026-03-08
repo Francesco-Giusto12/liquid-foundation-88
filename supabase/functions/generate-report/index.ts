@@ -198,7 +198,7 @@ Deno.serve(async (req: Request) => {
       headers: {
         ...corsHeaders,
         "Content-Type": "text/html; charset=utf-8",
-        "Content-Disposition": `inline; filename="cashflowvr-report-${normalizedPeriod.slice(0,7)}.html"`,
+        "Content-Disposition": `inline; filename="liquido-report-${normalizedPeriod.slice(0,7)}.html"`,
       },
       status: 200,
     });
