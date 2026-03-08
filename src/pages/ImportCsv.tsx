@@ -58,6 +58,16 @@ export default function ImportCsv() {
       } else if (res.success) {
         setPreview(res);
         setNeedsMapping(false);
+        // Store mapping from preview for use in confirm step
+        if (res.mapping) {
+          setMapping({
+            date_col: res.mapping.date_col || "",
+            amount_col: res.mapping.amount_col || "",
+            desc_col: res.mapping.desc_col || "",
+            ...(res.mapping.credit_col ? { credit_col: res.mapping.credit_col } : {}),
+            ...(res.mapping.debit_col ? { debit_col: res.mapping.debit_col } : {}),
+          });
+        }
       }
     } catch { toast.error("Errore durante l'anteprima"); }
     setLoading(false);
