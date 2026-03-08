@@ -77,8 +77,10 @@ export default function ImportCsv() {
     if (!file) return;
     setLoading(true);
     try {
-      const m = needsMapping ? mapping : preview?.mapping;
+      const m = Object.keys(mapping).length > 0 ? mapping : preview?.mapping;
+      console.log("[ImportCsv] confirm call - mapping:", JSON.stringify(m));
       const res = await importCsv(file, true, m ?? undefined);
+      console.log("[ImportCsv] confirm response:", JSON.stringify(res));
       if (res.success) {
         setResult(res);
         setPreview(null);
@@ -89,7 +91,7 @@ export default function ImportCsv() {
         calculateLiquidity(period).then(() => queryClient.invalidateQueries({ queryKey: ["liquidity"] }));
         evaluateAlerts(period).then(() => queryClient.invalidateQueries({ queryKey: ["alerts"] }));
       }
-    } catch { toast.error("Errore durante l'importazione"); }
+    } catch (err) { console.error("[ImportCsv] confirm error:", err); toast.error("Errore durante l'importazione"); }
     setLoading(false);
   };
 
