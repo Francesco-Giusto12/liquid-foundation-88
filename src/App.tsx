@@ -17,6 +17,8 @@ import Accounts from "./pages/Accounts";
 import NewTransaction from "./pages/NewTransaction";
 import ImportCsv from "./pages/ImportCsv";
 import Reports from "./pages/Reports";
+import Transactions from "./pages/Transactions";
+import Settings from "./pages/Settings";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound";
 
@@ -46,12 +48,12 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedPage><Dashboard /></ProtectedPage>} />
             <Route path="/accounts" element={<ProtectedPage><Accounts /></ProtectedPage>} />
             <Route path="/accounts/:id" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
-            <Route path="/transactions" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
+            <Route path="/transactions" element={<ProtectedPage><Transactions /></ProtectedPage>} />
             <Route path="/transactions/new" element={<ProtectedPage><NewTransaction /></ProtectedPage>} />
             <Route path="/import" element={<ProtectedPage><ImportCsv /></ProtectedPage>} />
             <Route path="/budgets" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
             <Route path="/reports" element={<ProtectedPage><Reports /></ProtectedPage>} />
-            <Route path="/settings" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
+            <Route path="/settings" element={<ProtectedPage><Settings /></ProtectedPage>} />
             <Route path="/settings/security" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
