@@ -282,7 +282,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <span className={`text-sm font-medium tabular-nums ${t.type === "income" ? "text-[hsl(var(--success))]" : "text-destructive"}`}>
-                      {t.type === "income" ? "+" : "-"}{formatCurrency(Number(t.amount))}
+                      {t.type === "income" ? "+" : "-"}{formatCurrency(Math.abs(Number(t.amount)))}
                     </span>
                   </div>
                 ))}
