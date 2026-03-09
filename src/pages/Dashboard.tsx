@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,50 +9,69 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
-import { Plus, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, ShieldAlert, AlertTriangle, Info } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, ShieldAlert, AlertTriangle, Info, Calendar } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, format, parse } from "date-fns";
+import { it } from "date-fns/locale";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
 
-  const now = new Date();
-  const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
-  const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
+  // Find the most recent month with transactions
+  const { data: latestMonth } = useQuery({
+    queryKey: ["latest-transaction-month"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("date")
+        .order("date", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      if (!data?.length) return format(new Date(), "yyyy-MM-01");
+      return format(startOfMonth(new Date(data[0].date)), "yyyy-MM-dd");
+    },
+    enabled: !!user,
+  });
 
-  // Liquidity calculation
+  // Generate last 12 months for the picker
+  const monthOptions = Array.from({ length: 12 }, (_, i) => {
+    const d = subMonths(new Date(), i);
+    const value = format(startOfMonth(d), "yyyy-MM-dd");
+    const label = format(d, "MMMM yyyy", { locale: it });
+    return { value, label: label.charAt(0).toUpperCase() + label.slice(1) };
+  });
+
+  const periodStart = selectedPeriod || latestMonth || format(new Date(), "yyyy-MM-01");
+  const periodDate = new Date(periodStart);
+  const monthStart = format(startOfMonth(periodDate), "yyyy-MM-dd");
+  const monthEnd = format(endOfMonth(periodDate), "yyyy-MM-dd");
+
+  // KPI: query transactions for selected period
+  const { data: monthlyTransactions, isLoading: loadingMonthly } = useQuery({
+    queryKey: ["transactions-monthly", monthStart, monthEnd],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("amount, type")
+        .gte("date", monthStart)
+        .lte("date", monthEnd);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user && !!latestMonth,
+  });
+
+  // Liquidity calculation with selected period
   const { data: liquidityData, isLoading: loadingLiquidity } = useQuery({
     queryKey: ["liquidity", monthStart],
     queryFn: async () => {
       const res = await calculateLiquidity(monthStart);
       return res.data;
     },
-    enabled: !!user,
-  });
-
-  const { data: accounts, isLoading: loadingAccounts } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("accounts").select("*").eq("is_active", true);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const { data: monthlyTransactions, isLoading: loadingMonthly } = useQuery({
-    queryKey: ["transactions-monthly", monthStart, monthEnd],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("*")
-        .gte("date", monthStart)
-        .lte("date", monthEnd);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
+    enabled: !!user && !!latestMonth,
   });
 
   const { data: recentTransactions, isLoading: loadingRecent } = useQuery({
@@ -71,6 +91,7 @@ export default function Dashboard() {
   const { data: chartData, isLoading: loadingChart } = useQuery({
     queryKey: ["cashflow-chart"],
     queryFn: async () => {
+      const now = new Date();
       const sixMonthsAgo = subMonths(now, 5);
       const start = format(startOfMonth(sixMonthsAgo), "yyyy-MM-dd");
       const { data, error } = await supabase
@@ -89,8 +110,8 @@ export default function Dashboard() {
       data?.forEach((t) => {
         const key = format(new Date(t.date), "MMM yyyy");
         if (months[key]) {
-          if (t.type === "income") months[key].income += Number(t.amount);
-          else if (t.type === "expense") months[key].expenses += Number(t.amount);
+          if (Number(t.amount) > 0) months[key].income += Number(t.amount);
+          else months[key].expenses += Math.abs(Number(t.amount));
         }
       });
 
@@ -104,7 +125,7 @@ export default function Dashboard() {
   });
 
   const { data: budgets, isLoading: loadingBudgets } = useQuery({
-    queryKey: ["budgets-progress"],
+    queryKey: ["budgets-progress", monthStart, monthEnd],
     queryFn: async () => {
       const { data: budgetData, error: bErr } = await supabase
         .from("budgets")
@@ -122,27 +143,48 @@ export default function Dashboard() {
             .eq("type", "expense")
             .gte("date", monthStart)
             .lte("date", monthEnd);
-          const spent = txns?.reduce((s, t) => s + Number(t.amount), 0) || 0;
+          const spent = txns?.reduce((s, t) => s + Math.abs(Number(t.amount)), 0) || 0;
           return { ...b, spent, percentage: Math.min(100, Math.round((spent / Number(b.amount)) * 100)) };
         })
       );
       return results;
     },
-    enabled: !!user,
+    enabled: !!user && !!latestMonth,
   });
 
-  const totalBalance = accounts?.reduce((s, a) => s + Number(a.balance || 0), 0) || 0;
-  const monthlyIncome = monthlyTransactions?.filter((t) => t.type === "income").reduce((s, t) => s + Math.abs(Number(t.amount)), 0) || 0;
-  const monthlyExpenses = monthlyTransactions?.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(Number(t.amount)), 0) || 0;
+  // KPI calculations: positive amounts = income, negative = expenses
+  const monthlyIncome = monthlyTransactions
+    ?.filter((t) => Number(t.amount) > 0)
+    .reduce((s, t) => s + Number(t.amount), 0) || 0;
+  const monthlyExpenses = monthlyTransactions
+    ?.filter((t) => Number(t.amount) < 0)
+    .reduce((s, t) => s + Math.abs(Number(t.amount)), 0) || 0;
   const netCashFlow = monthlyIncome - monthlyExpenses;
+  const totalBalance = monthlyTransactions
+    ?.reduce((s, t) => s + Number(t.amount), 0) || 0;
 
-  const loading = loadingAccounts || loadingMonthly;
+  const loading = loadingMonthly;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={periodStart} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Button asChild size="sm">
             <Link to="/transactions/new"><Plus className="mr-1 h-4 w-4" />Add Transaction</Link>
           </Button>
@@ -187,18 +229,8 @@ export default function Dashboard() {
       {/* Liquidity KPI Cards */}
       {liquidityData && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <KpiCard
-            title="Saldo Corrente"
-            value={liquidityData.bt}
-            icon={<DollarSign className="h-4 w-4" />}
-            loading={loadingLiquidity}
-          />
-          <KpiCard
-            title="Accantonamento Fiscale"
-            value={liquidityData.f}
-            icon={<ShieldAlert className="h-4 w-4" />}
-            loading={loadingLiquidity}
-          />
+          <KpiCard title="Saldo Corrente" value={liquidityData.bt} icon={<DollarSign className="h-4 w-4" />} loading={loadingLiquidity} />
+          <KpiCard title="Accantonamento Fiscale" value={liquidityData.f} icon={<ShieldAlert className="h-4 w-4" />} loading={loadingLiquidity} />
           <Card className={liquidityData.lr < 0 ? "border-destructive bg-destructive/5" : ""}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between mb-2">
@@ -281,8 +313,8 @@ export default function Dashboard() {
                         <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
                       </div>
                     </div>
-                    <span className={`text-sm font-medium tabular-nums ${t.type === "income" ? "text-[hsl(var(--success))]" : "text-destructive"}`}>
-                      {t.type === "income" ? "+" : "-"}{formatCurrency(Math.abs(Number(t.amount)))}
+                    <span className={`text-sm font-medium tabular-nums ${Number(t.amount) > 0 ? "text-[hsl(var(--success))]" : "text-destructive"}`}>
+                      {Number(t.amount) > 0 ? "+" : "-"}{formatCurrency(Math.abs(Number(t.amount)))}
                     </span>
                   </div>
                 ))}
