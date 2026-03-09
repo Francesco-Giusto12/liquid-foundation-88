@@ -132,8 +132,8 @@ export default function Dashboard() {
   });
 
   const totalBalance = accounts?.reduce((s, a) => s + Number(a.balance || 0), 0) || 0;
-  const monthlyIncome = monthlyTransactions?.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount), 0) || 0;
-  const monthlyExpenses = monthlyTransactions?.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0) || 0;
+  const monthlyIncome = monthlyTransactions?.filter((t) => t.type === "income").reduce((s, t) => s + Math.abs(Number(t.amount)), 0) || 0;
+  const monthlyExpenses = monthlyTransactions?.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(Number(t.amount)), 0) || 0;
   const netCashFlow = monthlyIncome - monthlyExpenses;
 
   const loading = loadingAccounts || loadingMonthly;
@@ -282,7 +282,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <span className={`text-sm font-medium tabular-nums ${t.type === "income" ? "text-[hsl(var(--success))]" : "text-destructive"}`}>
-                      {t.type === "income" ? "+" : "-"}{formatCurrency(Number(t.amount))}
+                      {t.type === "income" ? "+" : "-"}{formatCurrency(Math.abs(Number(t.amount)))}
                     </span>
                   </div>
                 ))}
