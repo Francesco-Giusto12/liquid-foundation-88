@@ -86,27 +86,25 @@ export default function Settings() {
   const activateRegime = useMutation({
     mutationFn: async ({ key, label, aliquota }: { key: string; label: string; aliquota: number }) => {
       if (!user) throw new Error("Not authenticated");
-      // Close current regime
-      const { data: current } = await supabase
-        .from("tax_regime_history")
-        .select("id")
-        .eq("regime_key", key)
-        .is("valid_to", null)
-        .maybeSingle();
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const validTo = yesterday.toISOString().slice(0, 10);
+      const validFrom = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
 
-      if (current) {
-        await supabase
-          .from("tax_regime_history")
-          .update({ valid_to: new Date().toISOString().slice(0, 10) })
-          .eq("id", current.id);
-      }
+      // Close ALL active regimes
+      await supabase
+        .from("tax_regime_history")
+        .update({ valid_to: validTo })
+        .eq("user_id", user.id)
+        .is("valid_to", null);
 
       const { error } = await supabase.from("tax_regime_history").insert({
         user_id: user.id,
         regime_key: key,
         regime_label: label,
-        aliquota,
-        valid_from: new Date().toISOString().slice(0, 10),
+        aliquota: aliquota / 100,
+        valid_from: validFrom,
       });
       if (error) throw error;
     },
