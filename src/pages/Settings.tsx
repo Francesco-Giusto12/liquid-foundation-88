@@ -425,8 +425,7 @@ export default function Settings() {
           <DialogHeader>
             <DialogTitle>Conferma attivazione regime</DialogTitle>
             <DialogDescription>
-              Stai per attivare <strong>{confirmDialog?.label}</strong> ({confirmDialog?.key}) con aliquota al <strong>{confirmDialog?.aliquota}%</strong>.
-              Il regime precedente verrà chiuso alla data odierna.
+              Attivare <strong>{confirmDialog?.label}</strong> con aliquota <strong>{confirmDialog?.aliquota}%</strong>? Avrà effetto dal mese corrente.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
