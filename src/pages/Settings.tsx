@@ -294,7 +294,7 @@ export default function Settings() {
                     <TableRow key={r.id}>
                       <TableCell><Badge variant="outline">{r.regime_key}</Badge></TableCell>
                       <TableCell className="text-sm">{r.regime_label}</TableCell>
-                      <TableCell className="text-sm tabular-nums">{r.aliquota}%</TableCell>
+                      <TableCell className="text-sm tabular-nums">{Math.round(Number(r.aliquota) * 100)}%</TableCell>
                       <TableCell className="text-sm">{formatDate(r.valid_from)}</TableCell>
                       <TableCell className="text-sm">{r.valid_to ? formatDate(r.valid_to) : <Badge className="bg-success text-success-foreground text-xs">Attivo</Badge>}</TableCell>
                     </TableRow>
