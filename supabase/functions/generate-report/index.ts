@@ -145,9 +145,9 @@ Deno.serve(async (req: Request) => {
     // Right-aligned meta
     doc.setFontSize(8);
     doc.text(`Generato il ${generatedAt}`, pw - margin, margin, { align: "right" });
-    doc.text(`Periodo: ${fmtDate(normalizedPeriod)} — ${fmtDate(periodEnd)}`, pw - margin, margin + 4, { align: "right" });
+    doc.text(`Periodo: ${fmtDate(normalizedPeriod)} - ${fmtDate(periodEnd)}`, pw - margin, margin + 4, { align: "right" });
     const regimeInfo = regimeData
-      ? `${regimeData.regime_key}${regimeData.regime_label ? ` — ${regimeData.regime_label}` : ""} (${pct(Number(regimeData.aliquota))})`
+      ? `${regimeData.regime_key}${regimeData.regime_label ? ` - ${regimeData.regime_label}` : ""} (${pct(Number(regimeData.aliquota))})`
       : "Non configurato";
     doc.text(`Regime: ${regimeInfo}`, pw - margin, margin + 8, { align: "right" });
 
