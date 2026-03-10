@@ -186,10 +186,10 @@ Deno.serve(async (req: Request) => {
     y += Math.ceil(kpis.length / 3) * 16 + 4;
 
     if (lr < 0) {
-      y = warningBox(doc, `⚠ Liquidità Reale Negativa: L'accantonamento (${eur(f)}) supera il saldo.`, y, margin, cw, red);
+      y = warningBox(doc, `ATTENZIONE - Liquidita Reale Negativa: L'accantonamento (${eur(f)}) supera il saldo.`, y, margin, cw, red);
     }
     if (uncatCount > 0) {
-      y = infoBox(doc, `ℹ ${uncatCount} entrate non categorizzate per ${eur(eUncat)}. Accantonamento potrebbe essere sottostimato.`, y, margin, cw);
+      y = infoBox(doc, `INFO: ${uncatCount} entrate non categorizzate per ${eur(eUncat)}. Accantonamento potrebbe essere sottostimato.`, y, margin, cw);
     }
 
     // ── Section 2: Income Transactions ──
