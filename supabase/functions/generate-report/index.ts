@@ -304,8 +304,8 @@ Deno.serve(async (req: Request) => {
         ["Movimenti totali nel periodo", String(transactions.length)],
         ["Entrate non categorizzate", String(uncatCount)],
         ["Importo entrate non categorizzate", eur(eUncat)],
-        ["Regime fiscale configurato", regimeData ? "✓ Sì" : "✗ No"],
-        ["Saldo iniziale disponibile", b0 !== 0 ? "✓ Sì" : "⚠ Stimato"],
+        ["Regime fiscale configurato", regimeData ? "Si" : "No"],
+        ["Saldo iniziale disponibile", b0 !== 0 ? "Si" : "Stimato"],
       ],
       {}
     );
