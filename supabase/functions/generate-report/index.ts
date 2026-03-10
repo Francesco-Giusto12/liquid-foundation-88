@@ -216,7 +216,7 @@ Deno.serve(async (req: Request) => {
       [0.12, 0.38, 0.3, 0.2],
       uscite.map(t => [
         fmtDate(t.date),
-        t.description || "—",
+        t.description || "-",
         (t as any).categories?.name ?? "Non categorizzato",
         eur(Math.abs(Number(t.amount))),
       ]),
