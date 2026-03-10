@@ -140,7 +140,7 @@ Deno.serve(async (req: Request) => {
     y += 5;
     doc.setFontSize(9);
     doc.setTextColor(...gray);
-    doc.text(`${profile?.full_name ?? ""} · ${profile?.account_type === "business" ? "Azienda" : "Personale"}`, margin, y);
+    doc.text(`${profile?.full_name ?? ""} - ${profile?.account_type === "business" ? "Azienda" : "Personale"}`, margin, y);
 
     // Right-aligned meta
     doc.setFontSize(8);
