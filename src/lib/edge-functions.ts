@@ -66,5 +66,11 @@ export async function generateReport(periodStart: string) {
   if (!res.ok) throw new Error("Failed to generate report");
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `liquidò-report-${periodStart.slice(0, 7)}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
