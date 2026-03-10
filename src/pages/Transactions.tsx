@@ -304,7 +304,7 @@ export default function Transactions() {
                       <TableCell className="text-right tabular-nums font-medium text-sm">
                         <span className={t.type === "income" ? "text-success" : t.type === "expense" ? "text-destructive" : ""}>
                           {t.type === "income" ? "+" : t.type === "expense" ? "-" : ""}
-                          {formatCurrency(Number(t.amount))}
+                          {formatCurrency(Math.abs(Number(t.amount)))}
                         </span>
                       </TableCell>
                     </TableRow>

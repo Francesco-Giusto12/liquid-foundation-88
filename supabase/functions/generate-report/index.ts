@@ -1,24 +1,5 @@
-// supabase/functions/generate-report/index.ts
-//
-// Edge Function: Generazione Report Mensile (HTML stampabile)
-// Metodo: POST
-// Auth: richiesta (Bearer token)
-//
-// Body JSON:
-// {
-//   "period_start": "2024-10-01"   // ISO date, primo giorno del mese
-// }
-//
-// Restituisce HTML completo, stampabile come PDF da browser (Ctrl+P / window.print())
-// Il frontend deve aprirlo in una nuova finestra o in un iframe e chiamare window.print()
-//
-// Come aggiungere in Lovable:
-// 1. Apri sezione "Edge functions" nel pannello Cloud
-// 2. Clicca "Add edge function"
-// 3. Nome funzione: generate-report
-// 4. Sostituisci tutto il contenuto con questo file
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,11 +9,10 @@ const corsHeaders = {
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // ── Auth ────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return errorResponse(401, "Missing authorization header");
 
@@ -45,44 +25,29 @@ Deno.serve(async (req: Request) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return errorResponse(401, "Unauthorized");
 
-    // ── Input ────────────────────────────────────────────────
     const body = await req.json().catch(() => ({}));
     const { period_start } = body;
 
-    if (!period_start || !isValidDate(period_start)) {
+    if (!period_start || !/^\d{4}-\d{2}-\d{2}$/.test(period_start)) {
       return errorResponse(400, "Invalid period_start");
     }
 
-    const periodDate  = new Date(period_start);
-    const normalizedPeriod = new Date(
-      periodDate.getFullYear(), periodDate.getMonth(), 1
-    ).toISOString().split("T")[0];
-    const periodEnd   = new Date(
-      periodDate.getFullYear(), periodDate.getMonth() + 1, 0
-    ).toISOString().split("T")[0];
-    const today       = new Date().toISOString().split("T")[0];
+    const periodDate = new Date(period_start);
+    const normalizedPeriod = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1)
+      .toISOString().split("T")[0];
+    const periodEnd = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0)
+      .toISOString().split("T")[0];
 
-    if (normalizedPeriod > today) {
-      return errorResponse(400, "Cannot generate report for future period");
-    }
-
-    // ── Carica dati ──────────────────────────────────────────
-
-    // Profilo utente
+    // Load data
     const { data: profile } = await supabase
       .from("profiles")
       .select("full_name, account_type, currency")
       .eq("id", user.id)
       .single();
 
-    // Transazioni del periodo con categoria
     const { data: transactions } = await supabase
       .from("transactions")
-      .select(`
-        id, amount, date, description, type,
-        is_categorized, is_imponibile,
-        categories(name, is_imponibile)
-      `)
+      .select("id, amount, date, description, type, is_categorized, is_imponibile, categories(name, is_imponibile)")
       .eq("user_id", user.id)
       .gte("date", normalizedPeriod)
       .lte("date", periodEnd)
@@ -92,58 +57,38 @@ Deno.serve(async (req: Request) => {
       return errorResponse(400, "No transactions found for this period");
     }
 
-    // Calcolo LR
-    const { data: alphaData } = await supabase.rpc(
-      "get_aliquota_for_period",
-      { p_user_id: user.id, p_period_start: normalizedPeriod }
-    );
+    const { data: alphaData } = await supabase.rpc("get_aliquota_for_period", {
+      p_user_id: user.id, p_period_start: normalizedPeriod,
+    });
     const alpha = alphaData !== null ? Number(alphaData) : null;
 
-    const { data: b0Data } = await supabase.rpc(
-      "get_period_balance_start",
-      { p_user_id: user.id, p_period_start: normalizedPeriod }
-    );
+    const { data: b0Data } = await supabase.rpc("get_period_balance_start", {
+      p_user_id: user.id, p_period_start: normalizedPeriod,
+    });
     const b0 = b0Data ?? 0;
 
-    const txList = transactions ?? [];
-    const entrate = txList.filter(t => Number(t.amount) > 0);
-    const uscite  = txList.filter(t => Number(t.amount) < 0);
-
-    const eTotal  = round2(entrate.reduce((s, t) => s + Number(t.amount), 0));
-    const uTotal  = round2(uscite.reduce((s, t) => s + Math.abs(Number(t.amount)), 0));
-    const bt      = round2(b0 + eTotal - uTotal);
-    const eTax    = round2(
-      entrate
-        .filter(t => t.is_categorized && t.is_imponibile)
-        .reduce((s, t) => s + Number(t.amount), 0)
-    );
-    const f       = alpha !== null ? round2(alpha * eTax) : 0;
-    const lr      = round2(bt - f);
-    const eUncat  = round2(
-      entrate.filter(t => !t.is_categorized).reduce((s, t) => s + Number(t.amount), 0)
-    );
+    const entrate = transactions.filter(t => Number(t.amount) > 0);
+    const uscite = transactions.filter(t => Number(t.amount) < 0);
+    const eTotal = r2(entrate.reduce((s, t) => s + Number(t.amount), 0));
+    const uTotal = r2(uscite.reduce((s, t) => s + Math.abs(Number(t.amount)), 0));
+    const bt = r2(b0 + eTotal - uTotal);
+    const eTax = r2(entrate.filter(t => t.is_categorized && t.is_imponibile).reduce((s, t) => s + Number(t.amount), 0));
+    const f = alpha !== null ? r2(alpha * eTax) : 0;
+    const lr = r2(bt - f);
+    const eUncat = r2(entrate.filter(t => !t.is_categorized).reduce((s, t) => s + Number(t.amount), 0));
     const uncatCount = entrate.filter(t => !t.is_categorized).length;
 
-    // Riepilogo per categoria
+    // Category summary
     const catMap = new Map<string, { name: string; type: string; total: number }>();
-    for (const tx of txList) {
+    for (const tx of transactions) {
       const catName = (tx as any).categories?.name ?? "Non categorizzato";
-      const key     = `${catName}_${Number(tx.amount) > 0 ? "income" : "expense"}`;
-      if (!catMap.has(key)) {
-        catMap.set(key, {
-          name:  catName,
-          type:  Number(tx.amount) > 0 ? "income" : "expense",
-          total: 0,
-        });
-      }
-      catMap.get(key)!.total = round2(
-        catMap.get(key)!.total + Math.abs(Number(tx.amount))
-      );
+      const key = `${catName}_${Number(tx.amount) > 0 ? "income" : "expense"}`;
+      if (!catMap.has(key)) catMap.set(key, { name: catName, type: Number(tx.amount) > 0 ? "income" : "expense", total: 0 });
+      catMap.get(key)!.total = r2(catMap.get(key)!.total + Math.abs(Number(tx.amount)));
     }
-    const catSummary = Array.from(catMap.values())
-      .sort((a, b) => b.total - a.total);
+    const catSummary = Array.from(catMap.values()).sort((a, b) => b.total - a.total);
 
-    // Alert attivi del periodo
+    // Alerts
     const { data: alertsActive } = await supabase
       .from("alert_history")
       .select("alert_code, trigger_value, threshold, status")
@@ -151,7 +96,7 @@ Deno.serve(async (req: Request) => {
       .eq("period_start", normalizedPeriod)
       .eq("status", "active");
 
-    // Regime attivo
+    // Regime
     const { data: regimeData } = await supabase
       .from("tax_regime_history")
       .select("regime_key, regime_label, aliquota")
@@ -162,43 +107,233 @@ Deno.serve(async (req: Request) => {
       .limit(1)
       .single();
 
-    const periodLabel = periodDate.toLocaleString("it-IT", {
-      month: "long", year: "numeric"
-    });
+    const periodLabel = periodDate.toLocaleString("it-IT", { month: "long", year: "numeric" });
     const currency = profile?.currency ?? "EUR";
+    const generatedAt = new Date().toLocaleDateString("it-IT");
 
-    // ── Genera HTML ──────────────────────────────────────────
-    const html = buildReportHTML({
-      profile,
-      periodLabel,
-      normalizedPeriod,
-      periodEnd,
-      generatedAt:  new Date().toLocaleDateString("it-IT"),
-      b0, bt, lr, f, eTotal, uTotal, eTax, eUncat, uncatCount, alpha,
-      regime:       regimeData,
-      entrate,
-      uscite,
-      catSummary,
-      alerts:       alertsActive ?? [],
-      currency,
+    // ── Build PDF ──
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pw = 210;
+    const margin = 15;
+    const cw = pw - margin * 2;
+    let y = margin;
+
+    const eur = (n: number) => new Intl.NumberFormat("it-IT", { style: "currency", currency }).format(n);
+    const pct = (n: number) => `${Math.round(n * 100)}%`;
+    const fmtDate = (iso: string) => { const [yy, mm, dd] = iso.split("-"); return `${dd}/${mm}/${yy}`; };
+
+    // Colors
+    const navy = [27, 58, 92] as const;
+    const green = [29, 107, 68] as const;
+    const red = [192, 57, 43] as const;
+    const gray = [100, 100, 100] as const;
+    const lightGray = [240, 240, 240] as const;
+
+    // Header
+    doc.setFontSize(18);
+    doc.setTextColor(...navy);
+    doc.text("LIQUIDÒ — REPORT MENSILE", margin, y);
+    y += 7;
+    doc.setFontSize(12);
+    doc.setTextColor(46, 117, 182);
+    doc.text(periodLabel.toUpperCase(), margin, y);
+    y += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(...gray);
+    doc.text(`${profile?.full_name ?? ""} · ${profile?.account_type === "business" ? "Azienda" : "Personale"}`, margin, y);
+
+    // Right-aligned meta
+    doc.setFontSize(8);
+    doc.text(`Generato il ${generatedAt}`, pw - margin, margin, { align: "right" });
+    doc.text(`Periodo: ${fmtDate(normalizedPeriod)} — ${fmtDate(periodEnd)}`, pw - margin, margin + 4, { align: "right" });
+    const regimeInfo = regimeData
+      ? `${regimeData.regime_key}${regimeData.regime_label ? ` — ${regimeData.regime_label}` : ""} (${pct(Number(regimeData.aliquota))})`
+      : "Non configurato";
+    doc.text(`Regime: ${regimeInfo}`, pw - margin, margin + 8, { align: "right" });
+
+    y += 5;
+    doc.setDrawColor(...navy);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pw - margin, y);
+    y += 8;
+
+    // ── Section 1: Executive Summary ──
+    y = sectionTitle(doc, "1. Riepilogo Esecutivo", y, margin, navy);
+
+    const kpis = [
+      { label: "Saldo Iniziale", value: eur(b0) },
+      { label: "Entrate", value: `+ ${eur(eTotal)}` },
+      { label: "Uscite", value: `− ${eur(uTotal)}` },
+      { label: "Saldo Corrente (Bₜ)", value: eur(bt) },
+      { label: "Accantonamento Fiscale", value: `− ${eur(f)}` },
+      { label: "Liquidità Reale (LR)", value: eur(lr) },
+    ];
+    const kpiW = cw / 3;
+    kpis.forEach((kpi, i) => {
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      const x = margin + col * kpiW;
+      const ky = y + row * 16;
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(x, ky, kpiW - 3, 14, 2, 2, "F");
+      doc.setFontSize(7);
+      doc.setTextColor(...gray);
+      doc.text(kpi.label.toUpperCase(), x + 3, ky + 5);
+      doc.setFontSize(11);
+      doc.setTextColor(...navy);
+      doc.text(kpi.value, x + 3, ky + 11);
     });
+    y += Math.ceil(kpis.length / 3) * 16 + 4;
+
+    if (lr < 0) {
+      y = warningBox(doc, `⚠ Liquidità Reale Negativa: L'accantonamento (${eur(f)}) supera il saldo.`, y, margin, cw, red);
+    }
+    if (uncatCount > 0) {
+      y = infoBox(doc, `ℹ ${uncatCount} entrate non categorizzate per ${eur(eUncat)}. Accantonamento potrebbe essere sottostimato.`, y, margin, cw);
+    }
+
+    // ── Section 2: Income Transactions ──
+    y = checkPage(doc, y, 40);
+    y = sectionTitle(doc, `2. Dettaglio Entrate (${entrate.length} movimenti)`, y, margin, navy);
+    y = drawTable(doc, y, margin, cw,
+      ["Data", "Descrizione", "Categoria", "Importo"],
+      [0.12, 0.38, 0.3, 0.2],
+      entrate.map(t => [
+        fmtDate(t.date),
+        t.description || "—",
+        (t as any).categories?.name ?? "Non categorizzato",
+        eur(Math.abs(Number(t.amount))),
+      ]),
+      { lastColAlign: "right", lastColColor: green }
+    );
+    y = drawTotalRow(doc, y, margin, cw, "Totale Entrate", eur(eTotal), green);
+
+    // ── Section 3: Expense Transactions ──
+    y = checkPage(doc, y, 40);
+    y = sectionTitle(doc, `3. Dettaglio Uscite (${uscite.length} movimenti)`, y, margin, navy);
+    y = drawTable(doc, y, margin, cw,
+      ["Data", "Descrizione", "Categoria", "Importo"],
+      [0.12, 0.38, 0.3, 0.2],
+      uscite.map(t => [
+        fmtDate(t.date),
+        t.description || "—",
+        (t as any).categories?.name ?? "Non categorizzato",
+        eur(Math.abs(Number(t.amount))),
+      ]),
+      { lastColAlign: "right", lastColColor: red }
+    );
+    y = drawTotalRow(doc, y, margin, cw, "Totale Uscite", eur(uTotal), red);
+
+    // ── Section 4: Category Summary ──
+    y = checkPage(doc, y, 40);
+    y = sectionTitle(doc, "4. Riepilogo per Categoria", y, margin, navy);
+
+    const catIncome = catSummary.filter(c => c.type === "income");
+    const catExpense = catSummary.filter(c => c.type === "expense");
+
+    if (catIncome.length) {
+      doc.setFontSize(9);
+      doc.setTextColor(...green);
+      doc.text("Entrate per categoria", margin, y);
+      y += 4;
+      y = drawTable(doc, y, margin, cw,
+        ["Categoria", "Totale", "% su entrate"],
+        [0.5, 0.25, 0.25],
+        catIncome.map(c => [c.name, eur(c.total), eTotal > 0 ? pct(c.total / eTotal) : "—"]),
+        { lastColAlign: "right" }
+      );
+    }
+    if (catExpense.length) {
+      doc.setFontSize(9);
+      doc.setTextColor(...red);
+      doc.text("Uscite per categoria", margin, y);
+      y += 4;
+      y = drawTable(doc, y, margin, cw,
+        ["Categoria", "Totale", "% su uscite"],
+        [0.5, 0.25, 0.25],
+        catExpense.map(c => [c.name, eur(c.total), uTotal > 0 ? pct(c.total / uTotal) : "—"]),
+        { lastColAlign: "right" }
+      );
+    }
+
+    // ── Section 5: Tax ──
+    y = checkPage(doc, y, 35);
+    y = sectionTitle(doc, "5. Accantonamento Fiscale", y, margin, navy);
+    y = drawTable(doc, y, margin, cw,
+      ["Voce", "Valore"],
+      [0.6, 0.4],
+      [
+        ["Regime fiscale attivo", regimeInfo],
+        ["Entrate imponibili (E_tax)", eur(eTax)],
+        ["Aliquota applicata (α)", alpha !== null ? pct(alpha) : "—"],
+        ["Accantonamento periodo (F)", eur(f)],
+        ...(uncatCount > 0 ? [["Entrate non categorizzate", `${eur(eUncat)} ⚠`]] : []),
+      ],
+      {}
+    );
+
+    // ── Section 6: Alerts ──
+    y = checkPage(doc, y, 25);
+    y = sectionTitle(doc, "6. Alert del Periodo", y, margin, navy);
+    const alerts = alertsActive ?? [];
+    if (alerts.length === 0) {
+      doc.setFontSize(8);
+      doc.setTextColor(...gray);
+      doc.text("Nessun alert attivo nel periodo", margin, y);
+      y += 6;
+    } else {
+      y = drawTable(doc, y, margin, cw,
+        ["Codice", "Tipo", "Valore"],
+        [0.2, 0.5, 0.3],
+        alerts.map((a: any) => [
+          a.alert_code,
+          alertLabel(a.alert_code),
+          a.trigger_value !== null ? eur(Number(a.trigger_value)) : "—",
+        ]),
+        {}
+      );
+    }
+
+    // ── Section 7: Data Quality ──
+    y = checkPage(doc, y, 30);
+    y = sectionTitle(doc, "7. Note Qualità Dati", y, margin, navy);
+    y = drawTable(doc, y, margin, cw,
+      ["Metrica", "Valore"],
+      [0.6, 0.4],
+      [
+        ["Movimenti totali nel periodo", String(transactions.length)],
+        ["Entrate non categorizzate", String(uncatCount)],
+        ["Importo entrate non categorizzate", eur(eUncat)],
+        ["Regime fiscale configurato", regimeData ? "✓ Sì" : "✗ No"],
+        ["Saldo iniziale disponibile", b0 !== 0 ? "✓ Sì" : "⚠ Stimato"],
+      ],
+      {}
+    );
+
+    // Footer
+    y = checkPage(doc, y, 15);
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, y, pw - margin, y);
+    y += 5;
+    doc.setFontSize(7);
+    doc.setTextColor(160, 160, 160);
+    doc.text(`Liquidò — Report generato il ${generatedAt} · Periodo ${periodLabel} · Documento riservato`, pw / 2, y, { align: "center" });
 
     // Audit log
     await supabase.from("audit_logs").insert({
-      user_id:       user.id,
-      action:        "report_generated",
+      user_id: user.id,
+      action: "report_generated",
       resource_type: "report",
-      metadata: {
-        period_start: normalizedPeriod,
-        tx_count:     txList.length,
-      },
+      metadata: { period_start: normalizedPeriod, tx_count: transactions.length, format: "pdf" },
     });
 
-    return new Response(html, {
+    const pdfOutput = doc.output("arraybuffer");
+
+    return new Response(pdfOutput, {
       headers: {
         ...corsHeaders,
-        "Content-Type": "text/html; charset=utf-8",
-        "Content-Disposition": `inline; filename="liquido-report-${normalizedPeriod.slice(0,7)}.html"`,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="liquido-report-${normalizedPeriod.slice(0, 7)}.pdf"`,
       },
       status: 200,
     });
@@ -209,342 +344,108 @@ Deno.serve(async (req: Request) => {
   }
 });
 
-// ── Builder HTML ──────────────────────────────────────────────
+// ── PDF Helpers ──
 
-function buildReportHTML(d: any): string {
-  const eur = (n: number) =>
-    new Intl.NumberFormat("it-IT", { style: "currency", currency: d.currency }).format(n);
-
-  const pct = (n: number) =>
-    `${Math.round(n * 100)}%`;
-
-  const rowColor = (i: number) => i % 2 === 0 ? "#ffffff" : "#f8fafc";
-
-  const entrateRows = d.entrate.map((t: any, i: number) => `
-    <tr style="background:${rowColor(i)}">
-      <td>${formatDate(t.date)}</td>
-      <td>${esc(t.description || "—")}</td>
-      <td>${esc((t as any).categories?.name ?? "Non categorizzato")}</td>
-      <td style="text-align:right;color:#1D6B44;font-weight:600">${eur(Math.abs(Number(t.amount)))}</td>
-    </tr>`).join("");
-
-  const usciteRows = d.uscite.map((t: any, i: number) => `
-    <tr style="background:${rowColor(i)}">
-      <td>${formatDate(t.date)}</td>
-      <td>${esc(t.description || "—")}</td>
-      <td>${esc((t as any).categories?.name ?? "Non categorizzato")}</td>
-      <td style="text-align:right;color:#C0392B;font-weight:600">${eur(Math.abs(Number(t.amount)))}</td>
-    </tr>`).join("");
-
-  const catEntrateRows = d.catSummary
-    .filter((c: any) => c.type === "income")
-    .map((c: any, i: number) => `
-      <tr style="background:${rowColor(i)}">
-        <td>${esc(c.name)}</td>
-        <td style="text-align:right;color:#1D6B44">${eur(c.total)}</td>
-        <td style="text-align:right">${d.eTotal > 0 ? pct(c.total / d.eTotal) : "—"}</td>
-      </tr>`).join("");
-
-  const catUsciteRows = d.catSummary
-    .filter((c: any) => c.type === "expense")
-    .map((c: any, i: number) => `
-      <tr style="background:${rowColor(i)}">
-        <td>${esc(c.name)}</td>
-        <td style="text-align:right;color:#C0392B">${eur(c.total)}</td>
-        <td style="text-align:right">${d.uTotal > 0 ? pct(c.total / d.uTotal) : "—"}</td>
-      </tr>`).join("");
-
-  const alertRows = d.alerts.length === 0
-    ? `<tr><td colspan="3" style="text-align:center;color:#888">Nessun alert attivo nel periodo</td></tr>`
-    : d.alerts.map((a: any, i: number) => `
-        <tr style="background:${rowColor(i)}">
-          <td><strong>${a.alert_code}</strong></td>
-          <td>${alertLabel(a.alert_code)}</td>
-          <td>${a.trigger_value !== null ? eur(Number(a.trigger_value)) : "—"}</td>
-        </tr>`).join("");
-
-  const regimeInfo = d.regime
-    ? `${d.regime.regime_key}${d.regime.regime_label ? ` — ${esc(d.regime.regime_label)}` : ""} (${pct(Number(d.regime.aliquota))})`
-    : "Non configurato";
-
-  return `<!DOCTYPE html>
-<html lang="it">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Liquidò — Report ${d.periodLabel}</title>
-  <style>
-    /* ── Reset & base ── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-      font-size: 13px;
-      color: #1a1a2e;
-      background: #fff;
-      padding: 32px;
-      max-width: 900px;
-      margin: 0 auto;
-    }
-
-    /* ── Intestazione ── */
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      border-bottom: 3px solid #1B3A5C;
-      padding-bottom: 16px;
-      margin-bottom: 24px;
-    }
-    .header h1 { font-size: 22px; color: #1B3A5C; }
-    .header .meta { text-align: right; color: #666; font-size: 12px; line-height: 1.8; }
-
-    /* ── KPI cards ── */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-    .kpi-card {
-      border: 1px solid #e0e0e0;
-      border-radius: 6px;
-      padding: 14px;
-      background: #f8fafc;
-    }
-    .kpi-card .label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
-    .kpi-card .value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
-    .kpi-card.highlight { border-color: #2E75B6; background: #D5E8F0; }
-    .kpi-card.warning   { border-color: #C0392B; background: #FDECEA; }
-    .value.positive { color: #1D6B44; }
-    .value.negative { color: #C0392B; }
-    .value.blue     { color: #1B3A5C; }
-
-    /* ── Sezioni ── */
-    h2 {
-      font-size: 14px;
-      color: #1B3A5C;
-      border-left: 4px solid #2E75B6;
-      padding-left: 8px;
-      margin: 24px 0 10px;
-    }
-
-    /* ── Tabelle ── */
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th {
-      background: #1B3A5C;
-      color: #fff;
-      text-align: left;
-      padding: 8px 10px;
-      font-weight: 600;
-    }
-    td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; }
-
-    /* ── Warning box ── */
-    .warning-box {
-      background: #FDECEA;
-      border-left: 4px solid #C0392B;
-      padding: 10px 14px;
-      margin: 8px 0;
-      border-radius: 0 4px 4px 0;
-      font-size: 12px;
-    }
-    .info-box {
-      background: #D5E8F0;
-      border-left: 4px solid #2E75B6;
-      padding: 10px 14px;
-      margin: 8px 0;
-      border-radius: 0 4px 4px 0;
-      font-size: 12px;
-    }
-
-    /* ── Footer ── */
-    .footer {
-      margin-top: 36px;
-      padding-top: 12px;
-      border-top: 1px solid #e0e0e0;
-      font-size: 11px;
-      color: #999;
-      text-align: center;
-    }
-
-    /* ── Print ── */
-    @media print {
-      body { padding: 16px; font-size: 11px; }
-      .no-print { display: none !important; }
-      h2 { margin-top: 16px; }
-      .kpi-grid { grid-template-columns: repeat(3, 1fr); }
-      tr { page-break-inside: avoid; }
-      h2, .section-title { page-break-after: avoid; }
-    }
-  </style>
-</head>
-<body>
-
-  <div class="no-print" style="text-align:right;margin-bottom:16px">
-    <button onclick="window.print()" style="padding:8px 16px;background:#1B3A5C;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px">
-      📄 Stampa / Salva PDF
-    </button>
-  </div>
-
-  <div class="header">
-    <div>
-      <h1>LIQUIDÒ — REPORT MENSILE</h1>
-      <p style="font-size:15px;color:#2E75B6;margin-top:4px">${esc(d.periodLabel.toUpperCase())}</p>
-      <p style="font-size:12px;color:#666;margin-top:4px">
-        ${esc(d.profile?.full_name ?? "")}  · 
-        ${esc(d.profile?.account_type === "business" ? "Azienda" : "Personale")}
-      </p>
-    </div>
-    <div class="meta">
-      Generato il ${d.generatedAt}<br>
-      Periodo: ${formatDate(d.normalizedPeriod)} — ${formatDate(d.periodEnd)}<br>
-      Regime fiscale: ${regimeInfo}
-    </div>
-  </div>
-
-  <h2>1. Riepilogo Esecutivo</h2>
-  <div class="kpi-grid">
-    <div class="kpi-card">
-      <div class="label">Saldo Iniziale</div>
-      <div class="value blue">${eur(d.b0)}</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">Entrate</div>
-      <div class="value positive">+ ${eur(d.eTotal)}</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">Uscite</div>
-      <div class="value negative">− ${eur(d.uTotal)}</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">Saldo Corrente (Bₜ)</div>
-      <div class="value blue">${eur(d.bt)}</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">Accantonamento Fiscale</div>
-      <div class="value negative">− ${eur(d.f)}</div>
-    </div>
-    <div class="kpi-card ${d.lr < 0 ? 'warning' : 'highlight'}">
-      <div class="label">Liquidità Reale (LR)</div>
-      <div class="value ${d.lr < 0 ? 'negative' : 'positive'}">${eur(d.lr)}</div>
-    </div>
-  </div>
-
-  ${d.lr < 0 ? `
-  <div class="warning-box">
-    ⚠ <strong>Liquidità Reale Negativa:</strong>
-    L'accantonamento fiscale (${eur(d.f)}) supera il saldo disponibile.
-    Sono necessarie azioni correttive.
-  </div>
-` : ""}
-
-  ${d.uncatCount > 0 ? `
-  <div class="info-box">
-    ℹ ${d.uncatCount} entrate non categorizzate per ${eur(d.eUncat)}.
-    L'accantonamento fiscale potrebbe essere sottostimato.
-  </div>
-` : ""}
-
-  <h2>2. Dettaglio Entrate (${d.entrate.length} movimenti)</h2>
-  <table>
-    <thead><tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th>Importo</th></tr></thead>
-    <tbody>${entrateRows}</tbody>
-    <tfoot>
-      <tr style="background:#f0f7f0;font-weight:700">
-        <td colspan="3">Totale Entrate</td>
-        <td style="text-align:right;color:#1D6B44">${eur(d.eTotal)}</td>
-      </tr>
-    </tfoot>
-  </table>
-
-  <h2>3. Dettaglio Uscite (${d.uscite.length} movimenti)</h2>
-  <table>
-    <thead><tr><th>Data</th><th>Descrizione</th><th>Categoria</th><th>Importo</th></tr></thead>
-    <tbody>${usciteRows}</tbody>
-    <tfoot>
-      <tr style="background:#fef0f0;font-weight:700">
-        <td colspan="3">Totale Uscite</td>
-        <td style="text-align:right;color:#C0392B">${eur(d.uTotal)}</td>
-      </tr>
-    </tfoot>
-  </table>
-
-  <h2>4. Riepilogo per Categoria</h2>
-
-  ${d.catSummary.filter((c: any) => c.type === "income").length > 0 ? `
-  <h3 style="font-size:12px;color:#1D6B44;margin:12px 0 6px">Entrate per categoria</h3>
-  <table>
-    <thead><tr><th>Categoria</th><th>Totale</th><th>% su entrate</th></tr></thead>
-    <tbody>${catEntrateRows}</tbody>
-  </table>
-` : ""}
-
-  ${d.catSummary.filter((c: any) => c.type === "expense").length > 0 ? `
-  <h3 style="font-size:12px;color:#C0392B;margin:12px 0 6px">Uscite per categoria</h3>
-  <table>
-    <thead><tr><th>Categoria</th><th>Totale</th><th>% su uscite</th></tr></thead>
-    <tbody>${catUsciteRows}</tbody>
-  </table>
-` : ""}
-
-  <h2>5. Accantonamento Fiscale</h2>
-  <table>
-    <thead><tr><th>Voce</th><th>Valore</th></tr></thead>
-    <tbody>
-      <tr><td>Regime fiscale attivo</td><td>${regimeInfo}</td></tr>
-      <tr><td>Entrate imponibili (E_tax)</td><td>${eur(d.eTax)}</td></tr>
-      <tr><td>Aliquota applicata (α)</td><td>${d.alpha !== null ? pct(d.alpha) : "—"}</td></tr>
-      <tr><td>Accantonamento periodo (F)</td><td>${eur(d.f)}</td></tr>
-      ${d.uncatCount > 0 ? `<tr style="background:#FDECEA"><td>Entrate non categorizzate (E_uncat)</td><td>${eur(d.eUncat)} ⚠</td></tr>` : ""}
-    </tbody>
-  </table>
-
-  <h2>6. Alert del Periodo</h2>
-  <table>
-    <thead><tr><th>Codice</th><th>Tipo</th><th>Valore</th></tr></thead>
-    <tbody>${alertRows}</tbody>
-  </table>
-
-  <h2>7. Note Qualità Dati</h2>
-  <table>
-    <thead><tr><th>Metrica</th><th>Valore</th></tr></thead>
-    <tbody>
-      <tr><td>Movimenti totali nel periodo</td><td>${d.entrate.length + d.uscite.length}</td></tr>
-      <tr><td>Entrate non categorizzate</td>
-        <td style="${d.uncatCount > 0 ? 'color:#C0392B;font-weight:600' : ''}">${d.uncatCount}</td></tr>
-      <tr><td>Importo entrate non categorizzate</td>
-        <td style="${d.uncatCount > 0 ? 'color:#C0392B' : ''}">${eur(d.eUncat)}</td></tr>
-      <tr><td>Regime fiscale configurato</td>
-        <td>${d.regime ? "✓ Sì" : "✗ No"}</td></tr>
-      <tr><td>Saldo iniziale disponibile</td>
-        <td>${d.b0 !== 0 ? "✓ Sì" : "⚠ Stimato"}</td></tr>
-    </tbody>
-  </table>
-
-  <div class="footer">
-    Liquidò — Report generato il ${d.generatedAt}  · 
-    Periodo ${esc(d.periodLabel)}  · 
-    Documento riservato — uso personale
-  </div>
-
-</body>
-</html>`;
+function sectionTitle(doc: any, title: string, y: number, margin: number, color: readonly number[]): number {
+  doc.setFontSize(11);
+  doc.setTextColor(...color);
+  doc.setFillColor(...color);
+  doc.rect(margin, y - 3, 1.5, 6, "F");
+  doc.text(title, margin + 4, y + 1.5);
+  return y + 8;
 }
 
-// ── Utilities ─────────────────────────────────────────────────
-
-function esc(s: string): string {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+function checkPage(doc: any, y: number, needed: number): number {
+  if (y + needed > 280) {
+    doc.addPage();
+    return 15;
+  }
+  return y;
 }
 
-function formatDate(iso: string): string {
-  if (!iso) return "—";
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
+function drawTable(
+  doc: any, startY: number, margin: number, cw: number,
+  headers: string[], colRatios: number[], rows: string[][],
+  opts: { lastColAlign?: string; lastColColor?: readonly number[] }
+): number {
+  const rowH = 6;
+  let y = startY;
+
+  // Header
+  doc.setFillColor(27, 58, 92);
+  doc.rect(margin, y, cw, rowH, "F");
+  doc.setFontSize(7);
+  doc.setTextColor(255, 255, 255);
+  let x = margin;
+  headers.forEach((h, i) => {
+    const w = cw * colRatios[i];
+    doc.text(h, x + 2, y + 4);
+    x += w;
+  });
+  y += rowH;
+
+  // Rows
+  rows.forEach((row, ri) => {
+    y = checkPage(doc, y, rowH);
+    if (ri % 2 === 1) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, y, cw, rowH, "F");
+    }
+    x = margin;
+    row.forEach((cell, ci) => {
+      const w = cw * colRatios[ci];
+      const isLast = ci === row.length - 1;
+      if (isLast && opts.lastColColor) {
+        doc.setTextColor(...opts.lastColColor);
+      } else {
+        doc.setTextColor(30, 30, 30);
+      }
+      doc.setFontSize(7);
+      const txt = cell.length > 40 ? cell.slice(0, 38) + "…" : cell;
+      if (isLast && opts.lastColAlign === "right") {
+        doc.text(txt, x + w - 2, y + 4, { align: "right" });
+      } else {
+        doc.text(txt, x + 2, y + 4);
+      }
+      x += w;
+    });
+    y += rowH;
+  });
+
+  return y + 2;
+}
+
+function drawTotalRow(doc: any, y: number, margin: number, cw: number, label: string, value: string, color: readonly number[]): number {
+  doc.setFillColor(240, 245, 240);
+  doc.rect(margin, y, cw, 7, "F");
+  doc.setFontSize(8);
+  doc.setTextColor(30, 30, 30);
+  doc.text(label, margin + 2, y + 5, { maxWidth: cw * 0.7 });
+  doc.setTextColor(...color);
+  doc.text(value, margin + cw - 2, y + 5, { align: "right" });
+  return y + 10;
+}
+
+function warningBox(doc: any, text: string, y: number, margin: number, cw: number, color: readonly number[]): number {
+  doc.setFillColor(253, 236, 234);
+  doc.rect(margin, y, cw, 10, "F");
+  doc.setFillColor(...color);
+  doc.rect(margin, y, 1.5, 10, "F");
+  doc.setFontSize(7);
+  doc.setTextColor(...color);
+  doc.text(text, margin + 4, y + 6, { maxWidth: cw - 6 });
+  return y + 13;
+}
+
+function infoBox(doc: any, text: string, y: number, margin: number, cw: number): number {
+  doc.setFillColor(213, 232, 240);
+  doc.rect(margin, y, cw, 10, "F");
+  doc.setFillColor(46, 117, 182);
+  doc.rect(margin, y, 1.5, 10, "F");
+  doc.setFontSize(7);
+  doc.setTextColor(46, 117, 182);
+  doc.text(text, margin + 4, y + 6, { maxWidth: cw - 6 });
+  return y + 13;
 }
 
 function alertLabel(code: string): string {
@@ -558,17 +459,13 @@ function alertLabel(code: string): string {
   return labels[code] ?? code;
 }
 
-function round2(n: number): number {
+function r2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
-}
-
-function isValidDate(s: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
 }
 
 function errorResponse(status: number, message: string): Response {
   return new Response(
     JSON.stringify({ success: false, error: message }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" }, status }
+    { headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" }, status }
   );
 }
