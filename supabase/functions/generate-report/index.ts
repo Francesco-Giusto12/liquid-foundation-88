@@ -239,7 +239,7 @@ Deno.serve(async (req: Request) => {
       y = drawTable(doc, y, margin, cw,
         ["Categoria", "Totale", "% su entrate"],
         [0.5, 0.25, 0.25],
-        catIncome.map(c => [c.name, eur(c.total), eTotal > 0 ? pct(c.total / eTotal) : "—"]),
+        catIncome.map(c => [c.name, eur(c.total), eTotal > 0 ? pct(c.total / eTotal) : "-"]),
         { lastColAlign: "right" }
       );
     }
