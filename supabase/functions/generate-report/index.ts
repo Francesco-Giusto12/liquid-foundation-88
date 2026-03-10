@@ -163,9 +163,9 @@ Deno.serve(async (req: Request) => {
     const kpis = [
       { label: "Saldo Iniziale", value: eur(b0) },
       { label: "Entrate", value: `+ ${eur(eTotal)}` },
-      { label: "Uscite", value: `− ${eur(uTotal)}` },
-      { label: "Saldo Corrente (Bₜ)", value: eur(bt) },
-      { label: "Accantonamento Fiscale", value: `− ${eur(f)}` },
+      { label: "Uscite", value: `- ${eur(uTotal)}` },
+      { label: "Saldo Corrente (Bt)", value: eur(bt) },
+      { label: "Accantonamento Fiscale", value: `- ${eur(f)}` },
       { label: "Liquidità Reale (LR)", value: eur(lr) },
     ];
     const kpiW = cw / 3;
