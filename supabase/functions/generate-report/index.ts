@@ -317,7 +317,7 @@ Deno.serve(async (req: Request) => {
     y += 5;
     doc.setFontSize(7);
     doc.setTextColor(160, 160, 160);
-    doc.text(`Liquidò — Report generato il ${generatedAt} · Periodo ${periodLabel} · Documento riservato`, pw / 2, y, { align: "center" });
+    doc.text(`Liquido - Report generato il ${generatedAt} - Periodo ${periodLabel} - Documento riservato`, pw / 2, y, { align: "center" });
 
     // Audit log
     await supabase.from("audit_logs").insert({
