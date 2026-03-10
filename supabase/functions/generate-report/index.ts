@@ -132,7 +132,7 @@ Deno.serve(async (req: Request) => {
     // Header
     doc.setFontSize(18);
     doc.setTextColor(...navy);
-    doc.text("LIQUIDÒ — REPORT MENSILE", margin, y);
+    doc.text("LIQUIDO - REPORT MENSILE", margin, y);
     y += 7;
     doc.setFontSize(12);
     doc.setTextColor(46, 117, 182);
