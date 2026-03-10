@@ -132,7 +132,7 @@ Deno.serve(async (req: Request) => {
     // Header
     doc.setFontSize(18);
     doc.setTextColor(...navy);
-    doc.text("LIQUIDÒ — REPORT MENSILE", margin, y);
+    doc.text("LIQUIDO - REPORT MENSILE", margin, y);
     y += 7;
     doc.setFontSize(12);
     doc.setTextColor(46, 117, 182);
@@ -140,14 +140,14 @@ Deno.serve(async (req: Request) => {
     y += 5;
     doc.setFontSize(9);
     doc.setTextColor(...gray);
-    doc.text(`${profile?.full_name ?? ""} · ${profile?.account_type === "business" ? "Azienda" : "Personale"}`, margin, y);
+    doc.text(`${profile?.full_name ?? ""} - ${profile?.account_type === "business" ? "Azienda" : "Personale"}`, margin, y);
 
     // Right-aligned meta
     doc.setFontSize(8);
     doc.text(`Generato il ${generatedAt}`, pw - margin, margin, { align: "right" });
-    doc.text(`Periodo: ${fmtDate(normalizedPeriod)} — ${fmtDate(periodEnd)}`, pw - margin, margin + 4, { align: "right" });
+    doc.text(`Periodo: ${fmtDate(normalizedPeriod)} - ${fmtDate(periodEnd)}`, pw - margin, margin + 4, { align: "right" });
     const regimeInfo = regimeData
-      ? `${regimeData.regime_key}${regimeData.regime_label ? ` — ${regimeData.regime_label}` : ""} (${pct(Number(regimeData.aliquota))})`
+      ? `${regimeData.regime_key}${regimeData.regime_label ? ` - ${regimeData.regime_label}` : ""} (${pct(Number(regimeData.aliquota))})`
       : "Non configurato";
     doc.text(`Regime: ${regimeInfo}`, pw - margin, margin + 8, { align: "right" });
 
@@ -163,9 +163,9 @@ Deno.serve(async (req: Request) => {
     const kpis = [
       { label: "Saldo Iniziale", value: eur(b0) },
       { label: "Entrate", value: `+ ${eur(eTotal)}` },
-      { label: "Uscite", value: `− ${eur(uTotal)}` },
-      { label: "Saldo Corrente (Bₜ)", value: eur(bt) },
-      { label: "Accantonamento Fiscale", value: `− ${eur(f)}` },
+      { label: "Uscite", value: `- ${eur(uTotal)}` },
+      { label: "Saldo Corrente (Bt)", value: eur(bt) },
+      { label: "Accantonamento Fiscale", value: `- ${eur(f)}` },
       { label: "Liquidità Reale (LR)", value: eur(lr) },
     ];
     const kpiW = cw / 3;
@@ -186,10 +186,10 @@ Deno.serve(async (req: Request) => {
     y += Math.ceil(kpis.length / 3) * 16 + 4;
 
     if (lr < 0) {
-      y = warningBox(doc, `⚠ Liquidità Reale Negativa: L'accantonamento (${eur(f)}) supera il saldo.`, y, margin, cw, red);
+      y = warningBox(doc, `ATTENZIONE - Liquidita Reale Negativa: L'accantonamento (${eur(f)}) supera il saldo.`, y, margin, cw, red);
     }
     if (uncatCount > 0) {
-      y = infoBox(doc, `ℹ ${uncatCount} entrate non categorizzate per ${eur(eUncat)}. Accantonamento potrebbe essere sottostimato.`, y, margin, cw);
+      y = infoBox(doc, `INFO: ${uncatCount} entrate non categorizzate per ${eur(eUncat)}. Accantonamento potrebbe essere sottostimato.`, y, margin, cw);
     }
 
     // ── Section 2: Income Transactions ──
@@ -200,7 +200,7 @@ Deno.serve(async (req: Request) => {
       [0.12, 0.38, 0.3, 0.2],
       entrate.map(t => [
         fmtDate(t.date),
-        t.description || "—",
+        t.description || "-",
         (t as any).categories?.name ?? "Non categorizzato",
         eur(Math.abs(Number(t.amount))),
       ]),
@@ -216,7 +216,7 @@ Deno.serve(async (req: Request) => {
       [0.12, 0.38, 0.3, 0.2],
       uscite.map(t => [
         fmtDate(t.date),
-        t.description || "—",
+        t.description || "-",
         (t as any).categories?.name ?? "Non categorizzato",
         eur(Math.abs(Number(t.amount))),
       ]),
@@ -239,7 +239,7 @@ Deno.serve(async (req: Request) => {
       y = drawTable(doc, y, margin, cw,
         ["Categoria", "Totale", "% su entrate"],
         [0.5, 0.25, 0.25],
-        catIncome.map(c => [c.name, eur(c.total), eTotal > 0 ? pct(c.total / eTotal) : "—"]),
+        catIncome.map(c => [c.name, eur(c.total), eTotal > 0 ? pct(c.total / eTotal) : "-"]),
         { lastColAlign: "right" }
       );
     }
@@ -251,7 +251,7 @@ Deno.serve(async (req: Request) => {
       y = drawTable(doc, y, margin, cw,
         ["Categoria", "Totale", "% su uscite"],
         [0.5, 0.25, 0.25],
-        catExpense.map(c => [c.name, eur(c.total), uTotal > 0 ? pct(c.total / uTotal) : "—"]),
+        catExpense.map(c => [c.name, eur(c.total), uTotal > 0 ? pct(c.total / uTotal) : "-"]),
         { lastColAlign: "right" }
       );
     }
@@ -265,9 +265,9 @@ Deno.serve(async (req: Request) => {
       [
         ["Regime fiscale attivo", regimeInfo],
         ["Entrate imponibili (E_tax)", eur(eTax)],
-        ["Aliquota applicata (α)", alpha !== null ? pct(alpha) : "—"],
+        ["Aliquota applicata", alpha !== null ? pct(alpha) : "-"],
         ["Accantonamento periodo (F)", eur(f)],
-        ...(uncatCount > 0 ? [["Entrate non categorizzate", `${eur(eUncat)} ⚠`]] : []),
+        ...(uncatCount > 0 ? [["Entrate non categorizzate", `${eur(eUncat)} (!)` ]] : []),
       ],
       {}
     );
@@ -288,7 +288,7 @@ Deno.serve(async (req: Request) => {
         alerts.map((a: any) => [
           a.alert_code,
           alertLabel(a.alert_code),
-          a.trigger_value !== null ? eur(Number(a.trigger_value)) : "—",
+          a.trigger_value !== null ? eur(Number(a.trigger_value)) : "-",
         ]),
         {}
       );
@@ -304,8 +304,8 @@ Deno.serve(async (req: Request) => {
         ["Movimenti totali nel periodo", String(transactions.length)],
         ["Entrate non categorizzate", String(uncatCount)],
         ["Importo entrate non categorizzate", eur(eUncat)],
-        ["Regime fiscale configurato", regimeData ? "✓ Sì" : "✗ No"],
-        ["Saldo iniziale disponibile", b0 !== 0 ? "✓ Sì" : "⚠ Stimato"],
+        ["Regime fiscale configurato", regimeData ? "Si" : "No"],
+        ["Saldo iniziale disponibile", b0 !== 0 ? "Si" : "Stimato"],
       ],
       {}
     );
@@ -317,7 +317,7 @@ Deno.serve(async (req: Request) => {
     y += 5;
     doc.setFontSize(7);
     doc.setTextColor(160, 160, 160);
-    doc.text(`Liquidò — Report generato il ${generatedAt} · Periodo ${periodLabel} · Documento riservato`, pw / 2, y, { align: "center" });
+    doc.text(`Liquido - Report generato il ${generatedAt} - Periodo ${periodLabel} - Documento riservato`, pw / 2, y, { align: "center" });
 
     // Audit log
     await supabase.from("audit_logs").insert({
