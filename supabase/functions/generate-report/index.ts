@@ -288,7 +288,7 @@ Deno.serve(async (req: Request) => {
         alerts.map((a: any) => [
           a.alert_code,
           alertLabel(a.alert_code),
-          a.trigger_value !== null ? eur(Number(a.trigger_value)) : "—",
+          a.trigger_value !== null ? eur(Number(a.trigger_value)) : "-",
         ]),
         {}
       );
