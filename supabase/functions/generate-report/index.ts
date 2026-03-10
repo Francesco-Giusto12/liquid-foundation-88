@@ -265,9 +265,9 @@ Deno.serve(async (req: Request) => {
       [
         ["Regime fiscale attivo", regimeInfo],
         ["Entrate imponibili (E_tax)", eur(eTax)],
-        ["Aliquota applicata (α)", alpha !== null ? pct(alpha) : "—"],
+        ["Aliquota applicata", alpha !== null ? pct(alpha) : "-"],
         ["Accantonamento periodo (F)", eur(f)],
-        ...(uncatCount > 0 ? [["Entrate non categorizzate", `${eur(eUncat)} ⚠`]] : []),
+        ...(uncatCount > 0 ? [["Entrate non categorizzate", `${eur(eUncat)} (!)` ]] : []),
       ],
       {}
     );
