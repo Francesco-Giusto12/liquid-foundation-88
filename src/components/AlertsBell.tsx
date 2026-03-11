@@ -22,6 +22,7 @@ export function AlertsBell() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [seenCodes, setSeenCodes] = useState<Set<string>>(new Set());
   const periodStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
 
   const { data } = useQuery({
@@ -31,10 +32,12 @@ export function AlertsBell() {
     refetchInterval: 5 * 60 * 1000,
   });
 
-  const alerts = data?.alerts?.filter((a: any) => a.triggered) ?? [];
+  const allAlerts = data?.alerts?.filter((a: any) => a.triggered) ?? [];
+  const alerts = allAlerts.filter((a: any) => !seenCodes.has(a.code + (a.metadata?.category_id ?? "")));
   const count = alerts.length;
 
-  const markSeen = async (alertCode: string) => {
+  const markSeen = async (alertCode: string, key: string) => {
+    setSeenCodes((prev) => new Set(prev).add(key));
     await supabase
       .from("alert_history")
       .update({ status: "seen", seen_at: new Date().toISOString() })
@@ -72,7 +75,7 @@ export function AlertsBell() {
                     <span className="text-sm font-medium">{a.title}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{a.message}</p>
-                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => markSeen(a.code)}>
+                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => markSeen(a.code, a.code + (a.metadata?.category_id ?? ""))}>
                     Segna come visto
                   </Button>
                 </div>
