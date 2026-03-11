@@ -75,7 +75,7 @@ export function AlertsBell() {
                     <span className="text-sm font-medium">{a.title}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{a.message}</p>
-                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => markSeen(a.code)}>
+                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => markSeen(a.code, a.code + (a.metadata?.category_id ?? ""))}>
                     Segna come visto
                   </Button>
                 </div>
