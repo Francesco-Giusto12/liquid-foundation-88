@@ -303,6 +303,39 @@ export default function Transactions() {
           </div>
         </Card>
       )}
+      {/* Sticky bulk action bar */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-lg">
+          <div className="mx-auto max-w-screen-xl flex items-center justify-between gap-3 px-4 py-3">
+            <span className="text-sm font-medium whitespace-nowrap">
+              {selected.size} transazioni selezionate
+            </span>
+            <div className="flex items-center gap-2">
+              <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder="Categoria..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        {c.color && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />}
+                        {c.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button size="sm" onClick={handleBulkCategorize} disabled={!bulkCategoryId || updateCategory.isPending}>
+                <Tag className="h-4 w-4 mr-1" />Assegna categoria
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+                <X className="h-4 w-4 mr-1" />Deseleziona tutto
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
