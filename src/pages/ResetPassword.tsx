@@ -14,10 +14,10 @@ import { DollarSign } from "lucide-react";
 const schema = z.object({
   password: z
     .string()
-    .min(12, "Password must be at least 12 characters")
-    .regex(/[A-Z]/, "Must contain at least 1 uppercase letter")
-    .regex(/[0-9]/, "Must contain at least 1 number")
-    .regex(/[^A-Za-z0-9]/, "Must contain at least 1 special character"),
+    .min(12, "La password deve avere almeno 12 caratteri")
+    .regex(/[A-Z]/, "Deve contenere almeno 1 lettera maiuscola")
+    .regex(/[0-9]/, "Deve contenere almeno 1 numero")
+    .regex(/[^A-Za-z0-9]/, "Deve contenere almeno 1 carattere speciale"),
 });
 
 export default function ResetPassword() {
@@ -44,11 +44,11 @@ export default function ResetPassword() {
     setLoading(false);
 
     if (error) {
-      toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
+      toast({ title: "Errore", description: "Qualcosa è andato storto. Riprova.", variant: "destructive" });
       return;
     }
 
-    toast({ title: "Password updated", description: "Your password has been reset successfully." });
+    toast({ title: "Password aggiornata", description: "La tua password è stata reimpostata con successo." });
     navigate("/dashboard", { replace: true });
   }
 
@@ -57,8 +57,8 @@ export default function ResetPassword() {
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle>Invalid Reset Link</CardTitle>
-            <CardDescription>This password reset link is invalid or has expired.</CardDescription>
+            <CardTitle>Link non valido</CardTitle>
+            <CardDescription>Questo link di reset password non è valido o è scaduto.</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -72,21 +72,21 @@ export default function ResetPassword() {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
             <DollarSign className="h-6 w-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl font-bold">Set New Password</CardTitle>
-          <CardDescription>Choose a strong new password</CardDescription>
+          <CardTitle className="text-2xl font-bold">Nuova Password</CardTitle>
+          <CardDescription>Scegli una nuova password sicura</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField control={form.control} name="password" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New Password</FormLabel>
-                  <FormControl><Input type="password" placeholder="Min 12 chars, 1 upper, 1 number, 1 special" {...field} /></FormControl>
+                  <FormLabel>Nuova Password</FormLabel>
+                  <FormControl><Input type="password" placeholder="Min 12 caratteri, 1 maiuscola, 1 numero, 1 speciale" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Updating..." : "Update password"}
+                {loading ? "Aggiornamento..." : "Aggiorna password"}
               </Button>
             </form>
           </Form>

@@ -5,13 +5,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { it } from "date-fns/locale";
 import { CalendarIcon, ArrowLeft, Repeat, ArrowRightLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,47 +21,44 @@ import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
+
+const typeLabels: Record<string, string> = {
+  income: "Entrata",
+  expense: "Uscita",
+  transfer: "Trasferimento",
+};
 
 const transactionSchema = z
   .object({
     amount: z
       .string()
-      .min(1, "Amount is required")
-      .refine((v) => !isNaN(Number(v)) && Number(v) > 0, "Must be a positive number")
-      .refine((v) => /^\d+(\.\d{1,2})?$/.test(v), "Max 2 decimal places")
-      .refine((v) => Number(v) <= 999999999.99, "Amount too large"),
+      .min(1, "L'importo è obbligatorio")
+      .refine((v) => !isNaN(Number(v)) && Number(v) > 0, "Deve essere un numero positivo")
+      .refine((v) => /^\d+(\.\d{1,2})?$/.test(v), "Massimo 2 decimali")
+      .refine((v) => Number(v) <= 999999999.99, "Importo troppo grande"),
     currency: z.string().min(1),
-    type: z.enum(["income", "expense", "transfer"], { required_error: "Select a type" }),
+    type: z.enum(["income", "expense", "transfer"], { required_error: "Seleziona un tipo" }),
     category_id: z.string().optional(),
-    account_id: z.string().min(1, "Select an account"),
+    account_id: z.string().min(1, "Seleziona un conto"),
     destination_account_id: z.string().optional(),
-    date: z.date({ required_error: "Select a date" }),
-    description: z.string().trim().max(255, "Max 255 characters").optional(),
-    notes: z.string().trim().max(1000, "Max 1000 characters").optional(),
+    date: z.date({ required_error: "Seleziona una data" }),
+    description: z.string().trim().max(255, "Massimo 255 caratteri").optional(),
+    notes: z.string().trim().max(1000, "Massimo 1000 caratteri").optional(),
     is_recurring: z.boolean().default(false),
     recurring_interval: z.enum(["daily", "weekly", "monthly", "yearly"]).optional(),
   })
   .refine(
     (d) => d.type !== "transfer" || (d.destination_account_id && d.destination_account_id !== d.account_id),
-    { message: "Select a different destination account", path: ["destination_account_id"] }
+    { message: "Seleziona un conto di destinazione diverso", path: ["destination_account_id"] }
   )
   .refine(
     (d) => !d.is_recurring || d.recurring_interval,
-    { message: "Select a frequency", path: ["recurring_interval"] }
+    { message: "Seleziona una frequenza", path: ["recurring_interval"] }
   );
 
 type TransactionForm = z.infer<typeof transactionSchema>;
@@ -121,7 +119,6 @@ export default function NewTransaction() {
       if (!user) throw new Error("Not authenticated");
       const amount = Number(values.amount);
 
-      // Insert transaction
       const { error: txError } = await supabase.from("transactions").insert({
         user_id: user.id,
         account_id: values.account_id,
@@ -136,7 +133,6 @@ export default function NewTransaction() {
       });
       if (txError) throw txError;
 
-      // Update source account balance
       const sourceAccount = accounts?.find((a) => a.id === values.account_id);
       if (sourceAccount) {
         const currentBalance = Number(sourceAccount.balance || 0);
@@ -148,7 +144,6 @@ export default function NewTransaction() {
         await supabase.from("accounts").update({ balance: newBalance }).eq("id", values.account_id);
       }
 
-      // Update destination account for transfers
       if (values.type === "transfer" && values.destination_account_id) {
         const destAccount = accounts?.find((a) => a.id === values.destination_account_id);
         if (destAccount) {
@@ -160,11 +155,11 @@ export default function NewTransaction() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      toast.success("Transaction added successfully");
+      toast.success("Transazione aggiunta");
       navigate("/transactions");
     },
     onError: () => {
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Qualcosa è andato storto. Riprova.");
     },
   });
 
@@ -174,7 +169,7 @@ export default function NewTransaction() {
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <h1 className="text-2xl font-bold">New Transaction</h1>
+        <h1 className="text-2xl font-bold">Nuova Transazione</h1>
       </div>
 
       <Card>
@@ -187,7 +182,7 @@ export default function NewTransaction() {
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Type</FormLabel>
+                    <FormLabel>Tipo</FormLabel>
                     <div className="grid grid-cols-3 gap-2">
                       {(["income", "expense", "transfer"] as const).map((t) => (
                         <Button
@@ -195,7 +190,6 @@ export default function NewTransaction() {
                           type="button"
                           variant={field.value === t ? "default" : "outline"}
                           className={cn(
-                            "capitalize",
                             field.value === t && t === "income" && "bg-[hsl(var(--success))] hover:bg-[hsl(var(--success))]/90",
                             field.value === t && t === "expense" && "bg-destructive hover:bg-destructive/90",
                             field.value === t && t === "transfer" && "bg-secondary hover:bg-secondary/90"
@@ -206,7 +200,7 @@ export default function NewTransaction() {
                           }}
                         >
                           {t === "transfer" && <ArrowRightLeft className="h-4 w-4 mr-1" />}
-                          {t}
+                          {typeLabels[t]}
                         </Button>
                       ))}
                     </div>
@@ -222,7 +216,7 @@ export default function NewTransaction() {
                   name="amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Amount</FormLabel>
+                      <FormLabel>Importo</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -241,7 +235,7 @@ export default function NewTransaction() {
                   name="currency"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Currency</FormLabel>
+                      <FormLabel>Valuta</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -266,11 +260,11 @@ export default function NewTransaction() {
                 name="account_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{watchType === "transfer" ? "From Account" : "Account"}</FormLabel>
+                    <FormLabel>{watchType === "transfer" ? "Dal Conto" : "Conto"}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select account" />
+                          <SelectValue placeholder="Seleziona conto" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -293,11 +287,11 @@ export default function NewTransaction() {
                   name="destination_account_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>To Account</FormLabel>
+                      <FormLabel>Al Conto</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select destination" />
+                            <SelectValue placeholder="Seleziona destinazione" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -323,11 +317,11 @@ export default function NewTransaction() {
                   name="category_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>Categoria</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select category" />
+                            <SelectValue placeholder="Seleziona categoria" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -358,7 +352,7 @@ export default function NewTransaction() {
                 name="date"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Date</FormLabel>
+                    <FormLabel>Data</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -369,7 +363,7 @@ export default function NewTransaction() {
                               !field.value && "text-muted-foreground"
                             )}
                           >
-                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                            {field.value ? format(field.value, "PPP", { locale: it }) : <span>Seleziona data</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
@@ -395,9 +389,9 @@ export default function NewTransaction() {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>Descrizione</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="e.g. Grocery shopping" maxLength={255} />
+                      <Input {...field} placeholder="es. Spesa al supermercato" maxLength={255} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -410,9 +404,9 @@ export default function NewTransaction() {
                 name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Notes (optional)</FormLabel>
+                    <FormLabel>Note (opzionale)</FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Additional details…" maxLength={1000} rows={3} />
+                      <Textarea {...field} placeholder="Dettagli aggiuntivi…" maxLength={1000} rows={3} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -428,7 +422,7 @@ export default function NewTransaction() {
                     <FormItem className="flex items-center justify-between rounded-lg border p-3">
                       <div className="flex items-center gap-2">
                         <Repeat className="h-4 w-4 text-muted-foreground" />
-                        <FormLabel className="!mt-0">Recurring</FormLabel>
+                        <FormLabel className="!mt-0">Ricorrente</FormLabel>
                       </div>
                       <FormControl>
                         <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -443,18 +437,18 @@ export default function NewTransaction() {
                     name="recurring_interval"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Frequency</FormLabel>
+                        <FormLabel>Frequenza</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select frequency" />
+                              <SelectValue placeholder="Seleziona frequenza" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="yearly">Yearly</SelectItem>
+                            <SelectItem value="daily">Giornaliera</SelectItem>
+                            <SelectItem value="weekly">Settimanale</SelectItem>
+                            <SelectItem value="monthly">Mensile</SelectItem>
+                            <SelectItem value="yearly">Annuale</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -467,10 +461,10 @@ export default function NewTransaction() {
               {/* Submit */}
               <div className="flex gap-3 pt-2">
                 <Button type="button" variant="outline" className="flex-1" onClick={() => navigate(-1)}>
-                  Cancel
+                  Annulla
                 </Button>
                 <Button type="submit" className="flex-1" disabled={mutation.isPending}>
-                  {mutation.isPending ? "Saving…" : "Add Transaction"}
+                  {mutation.isPending ? "Salvataggio…" : "Aggiungi Transazione"}
                 </Button>
               </div>
             </form>

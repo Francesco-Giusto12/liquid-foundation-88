@@ -12,8 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { DollarSign } from "lucide-react";
 
 const loginSchema = z.object({
-  email: z.string().trim().email("Invalid email address").max(255),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().trim().email("Indirizzo email non valido").max(255),
+  password: z.string().min(1, "La password è obbligatoria"),
 });
 
 type LoginValues = z.infer<typeof loginSchema>;
@@ -37,7 +37,7 @@ export default function Login() {
     setLoading(false);
 
     if (error) {
-      toast({ title: "Login failed", description: "Invalid email or password. Please try again.", variant: "destructive" });
+      toast({ title: "Accesso fallito", description: "Email o password non validi. Riprova.", variant: "destructive" });
       return;
     }
     navigate("/dashboard", { replace: true });
@@ -51,7 +51,7 @@ export default function Login() {
             <DollarSign className="h-6 w-6 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl font-bold">Liquidò</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
+          <CardDescription>Accedi al tuo account</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -59,7 +59,7 @@ export default function Login() {
               <FormField control={form.control} name="email" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Email</FormLabel>
-                  <FormControl><Input type="email" placeholder="you@example.com" {...field} /></FormControl>
+                  <FormControl><Input type="email" placeholder="tu@esempio.com" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
@@ -71,16 +71,16 @@ export default function Login() {
                 </FormItem>
               )} />
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? "Accesso in corso..." : "Accedi"}
               </Button>
             </form>
           </Form>
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            <Link to="/forgot-password" className="text-secondary hover:underline">Forgot password?</Link>
+            <Link to="/forgot-password" className="text-secondary hover:underline">Password dimenticata?</Link>
           </div>
           <div className="mt-2 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <Link to="/register" className="text-secondary hover:underline font-medium">Sign up</Link>
+            Non hai un account?{" "}
+            <Link to="/register" className="text-secondary hover:underline font-medium">Registrati</Link>
           </div>
         </CardContent>
       </Card>

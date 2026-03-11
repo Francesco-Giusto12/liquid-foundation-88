@@ -42,14 +42,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <Dialog open={showWarning} onOpenChange={(open) => { if (!open) dismissWarning(); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Session Expiring</DialogTitle>
+            <DialogTitle>Sessione in scadenza</DialogTitle>
             <DialogDescription>
-              You've been inactive for 30 minutes. You will be automatically logged out in 5 minutes.
+              Sei inattivo da 30 minuti. Verrai disconnesso automaticamente tra 5 minuti.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={signOut}>Log out now</Button>
-            <Button onClick={dismissWarning}>Stay logged in</Button>
+            <Button variant="outline" onClick={signOut}>Esci ora</Button>
+            <Button onClick={dismissWarning}>Resta connesso</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

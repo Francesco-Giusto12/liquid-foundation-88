@@ -15,10 +15,10 @@ const typeIcons: Record<string, React.ReactNode> = {
 };
 
 const typeLabels: Record<string, string> = {
-  bank: "Bank",
-  credit_card: "Credit Card",
-  cash: "Cash",
-  savings: "Savings",
+  bank: "Banca",
+  credit_card: "Carta di Credito",
+  cash: "Contanti",
+  savings: "Risparmio",
 };
 
 export default function Accounts() {
@@ -39,12 +39,12 @@ export default function Accounts() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Accounts</h1>
+        <h1 className="text-2xl font-bold">Conti</h1>
       </div>
 
       <Card>
         <CardContent className="p-4">
-          <p className="text-xs text-muted-foreground mb-1">Total Balance</p>
+          <p className="text-xs text-muted-foreground mb-1">Saldo Totale</p>
           {isLoading ? <Skeleton className="h-8 w-32" /> : (
             <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalBalance)}</p>
           )}
@@ -61,8 +61,8 @@ export default function Accounts() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <Landmark className="h-12 w-12 mx-auto mb-3 opacity-40" />
-            <p className="font-medium">No accounts yet</p>
-            <p className="text-sm mt-1">Add your first bank account, credit card, or cash account to get started.</p>
+            <p className="font-medium">Nessun conto aggiunto</p>
+            <p className="text-sm mt-1">Aggiungi il tuo primo conto bancario, carta di credito o conto contanti per iniziare.</p>
           </CardContent>
         </Card>
       ) : (

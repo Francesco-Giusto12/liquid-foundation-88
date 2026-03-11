@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { calculateLiquidity, evaluateAlerts } from "@/lib/edge-functions";
 import { format, startOfMonth, subMonths } from "date-fns";
-import { Upload, Check, X, FileDown, Tag } from "lucide-react";
+import { it } from "date-fns/locale";
+import { Upload, X, FileDown, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -29,7 +30,8 @@ export default function Transactions() {
   const monthOptions = useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => {
       const d = subMonths(now, i);
-      return { value: format(startOfMonth(d), "yyyy-MM-dd"), label: format(d, "MMMM yyyy") };
+      const label = format(d, "MMMM yyyy", { locale: it });
+      return { value: format(startOfMonth(d), "yyyy-MM-dd"), label: label.charAt(0).toUpperCase() + label.slice(1) };
     });
   }, []);
 
@@ -110,7 +112,6 @@ export default function Transactions() {
       setBulkCategoryId("");
       toast.success(isBulk ? `${count} transazioni categorizzate` : "Categoria aggiornata");
 
-      // Re-evaluate liquidity & alerts for affected periods
       if (transactions) {
         const affectedDates = transactions
           .filter((t) => ids.includes(t.id))
@@ -227,7 +228,7 @@ export default function Transactions() {
                   </TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Descrizione</TableHead>
-                  <TableHead>Categoria</TableHead>
+                  <TableHead className="hidden md:table-cell">Categoria</TableHead>
                   <TableHead className="text-right">Importo</TableHead>
                 </TableRow>
               </TableHeader>
@@ -251,7 +252,7 @@ export default function Transactions() {
                       <TableCell className="text-sm max-w-[200px] truncate">
                         {t.merchant || t.description || "—"}
                       </TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
                         {isEditing ? (
                           <Select
                             value={t.category_id || ""}
