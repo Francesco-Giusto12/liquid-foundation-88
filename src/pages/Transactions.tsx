@@ -194,35 +194,8 @@ export default function Transactions() {
         </CardContent>
       </Card>
 
-      {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <Card>
-          <CardContent className="p-3 flex items-center gap-3">
-            <span className="text-sm font-medium">{selected.size} selezionate</span>
-            <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Assegna categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    <span className="flex items-center gap-2">
-                      {c.color && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />}
-                      {c.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button size="sm" onClick={handleBulkCategorize} disabled={!bulkCategoryId || updateCategory.isPending}>
-              <Check className="h-4 w-4 mr-1" />Applica
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-              <X className="h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {/* spacer for sticky bar */}
+      {selected.size > 0 && <div className="h-20" />}
 
       {/* Table */}
       {isLoading ? (
