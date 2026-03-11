@@ -100,13 +100,27 @@ export default function Transactions() {
         .update({ category_id: categoryId })
         .in("id", ids);
       if (error) throw error;
+      return ids.length;
     },
-    onSuccess: () => {
+    onSuccess: (count, { ids }) => {
       queryClient.invalidateQueries({ queryKey: ["transactions-all"] });
+      const isBulk = ids.length > 1;
       setSelected(new Set());
       setEditingRow(null);
       setBulkCategoryId("");
-      toast.success("Categoria aggiornata");
+      toast.success(isBulk ? `${count} transazioni categorizzate` : "Categoria aggiornata");
+
+      // Re-evaluate liquidity & alerts for affected periods
+      if (transactions) {
+        const affectedDates = transactions
+          .filter((t) => ids.includes(t.id))
+          .map((t) => format(startOfMonth(new Date(t.date)), "yyyy-MM-dd"));
+        const uniquePeriods = [...new Set(affectedDates)];
+        uniquePeriods.forEach((p) => {
+          calculateLiquidity(p).catch(() => {});
+          evaluateAlerts(p).catch(() => {});
+        });
+      }
     },
     onError: () => toast.error("Errore nell'aggiornamento"),
   });
