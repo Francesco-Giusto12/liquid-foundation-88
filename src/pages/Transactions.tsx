@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { calculateLiquidity, evaluateAlerts } from "@/lib/edge-functions";
 import { format, startOfMonth, subMonths } from "date-fns";
-import { Upload, Check, X, FileDown } from "lucide-react";
+import { Upload, Check, X, FileDown, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -99,13 +100,27 @@ export default function Transactions() {
         .update({ category_id: categoryId })
         .in("id", ids);
       if (error) throw error;
+      return ids.length;
     },
-    onSuccess: () => {
+    onSuccess: (count, { ids }) => {
       queryClient.invalidateQueries({ queryKey: ["transactions-all"] });
+      const isBulk = ids.length > 1;
       setSelected(new Set());
       setEditingRow(null);
       setBulkCategoryId("");
-      toast.success("Categoria aggiornata");
+      toast.success(isBulk ? `${count} transazioni categorizzate` : "Categoria aggiornata");
+
+      // Re-evaluate liquidity & alerts for affected periods
+      if (transactions) {
+        const affectedDates = transactions
+          .filter((t) => ids.includes(t.id))
+          .map((t) => format(startOfMonth(new Date(t.date)), "yyyy-MM-dd"));
+        const uniquePeriods = [...new Set(affectedDates)];
+        uniquePeriods.forEach((p) => {
+          calculateLiquidity(p).catch(() => {});
+          evaluateAlerts(p).catch(() => {});
+        });
+      }
     },
     onError: () => toast.error("Errore nell'aggiornamento"),
   });
@@ -179,35 +194,8 @@ export default function Transactions() {
         </CardContent>
       </Card>
 
-      {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <Card>
-          <CardContent className="p-3 flex items-center gap-3">
-            <span className="text-sm font-medium">{selected.size} selezionate</span>
-            <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Assegna categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    <span className="flex items-center gap-2">
-                      {c.color && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />}
-                      {c.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button size="sm" onClick={handleBulkCategorize} disabled={!bulkCategoryId || updateCategory.isPending}>
-              <Check className="h-4 w-4 mr-1" />Applica
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-              <X className="h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {/* spacer for sticky bar */}
+      {selected.size > 0 && <div className="h-20" />}
 
       {/* Table */}
       {isLoading ? (
@@ -314,6 +302,39 @@ export default function Transactions() {
             </Table>
           </div>
         </Card>
+      )}
+      {/* Sticky bulk action bar */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-lg">
+          <div className="mx-auto max-w-screen-xl flex items-center justify-between gap-3 px-4 py-3">
+            <span className="text-sm font-medium whitespace-nowrap">
+              {selected.size} transazioni selezionate
+            </span>
+            <div className="flex items-center gap-2">
+              <Select value={bulkCategoryId} onValueChange={setBulkCategoryId}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder="Categoria..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        {c.color && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: c.color }} />}
+                        {c.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button size="sm" onClick={handleBulkCategorize} disabled={!bulkCategoryId || updateCategory.isPending}>
+                <Tag className="h-4 w-4 mr-1" />Assegna categoria
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+                <X className="h-4 w-4 mr-1" />Deseleziona tutto
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
