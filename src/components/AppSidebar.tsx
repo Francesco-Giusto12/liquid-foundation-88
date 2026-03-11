@@ -17,15 +17,15 @@ import {
 
 const mainItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Accounts", url: "/accounts", icon: Landmark },
-  { title: "Transactions", url: "/transactions", icon: ArrowLeftRight },
-  { title: "Budgets", url: "/budgets", icon: Target },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
-  { title: "Import CSV", url: "/import", icon: Upload },
+  { title: "Conti", url: "/accounts", icon: Landmark },
+  { title: "Transazioni", url: "/transactions", icon: ArrowLeftRight },
+  { title: "Budget", url: "/budgets", icon: Target },
+  { title: "Report", url: "/reports", icon: BarChart3 },
+  { title: "Importa CSV", url: "/import", icon: Upload },
 ];
 
 const settingsItems = [
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Impostazioni", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -89,7 +89,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton onClick={signOut} className="hover:bg-sidebar-accent/50 text-sidebar-foreground/70">
               <LogOut className="mr-2 h-4 w-4" />
-              {!collapsed && <span>Sign out</span>}
+              {!collapsed && <span>Esci</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

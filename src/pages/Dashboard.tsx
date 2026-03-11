@@ -13,14 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Link } from "react-router-dom";
 import { Plus, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, ShieldAlert, AlertTriangle, Info, Calendar } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { startOfMonth, endOfMonth, subMonths, format, parse } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
 import { it } from "date-fns/locale";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
 
-  // Find the most recent month with transactions
   const { data: latestMonth } = useQuery({
     queryKey: ["latest-transaction-month"],
     queryFn: async () => {
@@ -36,7 +35,6 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // Generate last 12 months for the picker
   const monthOptions = Array.from({ length: 12 }, (_, i) => {
     const d = subMonths(new Date(), i);
     const value = format(startOfMonth(d), "yyyy-MM-dd");
@@ -49,7 +47,6 @@ export default function Dashboard() {
   const monthStart = format(startOfMonth(periodDate), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(periodDate), "yyyy-MM-dd");
 
-  // KPI: query transactions for selected period
   const { data: monthlyTransactions, isLoading: loadingMonthly } = useQuery({
     queryKey: ["transactions-monthly", monthStart, monthEnd],
     queryFn: async () => {
@@ -64,7 +61,6 @@ export default function Dashboard() {
     enabled: !!user && !!latestMonth,
   });
 
-  // Liquidity calculation with selected period
   const { data: liquidityData, isLoading: loadingLiquidity } = useQuery({
     queryKey: ["liquidity", monthStart],
     queryFn: async () => {
@@ -103,12 +99,12 @@ export default function Dashboard() {
       const months: Record<string, { income: number; expenses: number }> = {};
       for (let i = 5; i >= 0; i--) {
         const m = subMonths(now, i);
-        const key = format(m, "MMM yyyy");
+        const key = format(m, "MMM yyyy", { locale: it });
         months[key] = { income: 0, expenses: 0 };
       }
 
       data?.forEach((t) => {
-        const key = format(new Date(t.date), "MMM yyyy");
+        const key = format(new Date(t.date), "MMM yyyy", { locale: it });
         if (months[key]) {
           if (Number(t.amount) > 0) months[key].income += Number(t.amount);
           else months[key].expenses += Math.abs(Number(t.amount));
@@ -152,7 +148,6 @@ export default function Dashboard() {
     enabled: !!user && !!latestMonth,
   });
 
-  // KPI calculations: positive amounts = income, negative = expenses
   const monthlyIncome = monthlyTransactions
     ?.filter((t) => Number(t.amount) > 0)
     .reduce((s, t) => s + Number(t.amount), 0) || 0;
@@ -167,30 +162,38 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={periodStart} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Header: title + period selector + buttons */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <div className="hidden md:flex items-center gap-2">
+            <Button asChild size="sm">
+              <Link to="/transactions/new"><Plus className="mr-1 h-4 w-4" />Nuova Transazione</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/accounts"><Plus className="mr-1 h-4 w-4" />Nuovo Conto</Link>
+            </Button>
           </div>
-          <Button asChild size="sm">
-            <Link to="/transactions/new"><Plus className="mr-1 h-4 w-4" />Add Transaction</Link>
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/accounts"><Plus className="mr-1 h-4 w-4" />Add Account</Link>
-          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Select value={periodStart} onValueChange={setSelectedPeriod}>
+            <SelectTrigger className="w-[180px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex md:hidden items-center gap-2 ml-auto">
+            <Button asChild size="sm">
+              <Link to="/transactions/new"><Plus className="h-4 w-4" /></Link>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -218,17 +221,17 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* KPI Cards */}
+      {/* KPI Cards - 2x2 on mobile, 4 cols on lg */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard title="Total Balance" value={totalBalance} icon={<DollarSign className="h-4 w-4" />} loading={loading} />
-        <KpiCard title="Monthly Income" value={monthlyIncome} icon={<TrendingUp className="h-4 w-4" />} loading={loading} color="text-[hsl(var(--success))]" />
-        <KpiCard title="Monthly Expenses" value={monthlyExpenses} icon={<TrendingDown className="h-4 w-4" />} loading={loading} color="text-destructive" />
-        <KpiCard title="Net Cash Flow" value={netCashFlow} icon={<ArrowUpDown className="h-4 w-4" />} loading={loading} color={netCashFlow >= 0 ? "text-[hsl(var(--success))]" : "text-destructive"} />
+        <KpiCard title="Saldo Totale" value={totalBalance} icon={<DollarSign className="h-4 w-4" />} loading={loading} />
+        <KpiCard title="Entrate Mensili" value={monthlyIncome} icon={<TrendingUp className="h-4 w-4" />} loading={loading} color="text-[hsl(var(--success))]" />
+        <KpiCard title="Uscite Mensili" value={monthlyExpenses} icon={<TrendingDown className="h-4 w-4" />} loading={loading} color="text-destructive" />
+        <KpiCard title="Flusso Netto" value={netCashFlow} icon={<ArrowUpDown className="h-4 w-4" />} loading={loading} color={netCashFlow >= 0 ? "text-[hsl(var(--success))]" : "text-destructive"} />
       </div>
 
-      {/* Liquidity KPI Cards */}
+      {/* Liquidity KPI Cards - stack vertically on mobile */}
       {liquidityData && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <KpiCard title="Saldo Corrente" value={liquidityData.bt} icon={<DollarSign className="h-4 w-4" />} loading={loadingLiquidity} />
           <KpiCard title="Accantonamento Fiscale" value={liquidityData.f} icon={<ShieldAlert className="h-4 w-4" />} loading={loadingLiquidity} />
           <Card className={liquidityData.lr < 0 ? "border-destructive bg-destructive/5" : ""}>
@@ -252,7 +255,7 @@ export default function Dashboard() {
       {/* Cash Flow Chart */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Cash Flow (Last 6 Months)</CardTitle>
+          <CardTitle className="text-lg">Flusso di Cassa (Ultimi 6 Mesi)</CardTitle>
         </CardHeader>
         <CardContent>
           {loadingChart ? (
@@ -273,8 +276,8 @@ export default function Dashboard() {
                   formatter={(value: number) => formatCurrency(value)}
                 />
                 <Legend />
-                <Line type="monotone" dataKey="income" stroke="hsl(var(--success))" strokeWidth={2} name="Income" />
-                <Line type="monotone" dataKey="expenses" stroke="hsl(var(--destructive))" strokeWidth={2} name="Expenses" />
+                <Line type="monotone" dataKey="income" stroke="hsl(var(--success))" strokeWidth={2} name="Entrate" />
+                <Line type="monotone" dataKey="expenses" stroke="hsl(var(--destructive))" strokeWidth={2} name="Uscite" />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -285,16 +288,16 @@ export default function Dashboard() {
         {/* Recent Transactions */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Recent Transactions</CardTitle>
+            <CardTitle className="text-lg">Transazioni Recenti</CardTitle>
           </CardHeader>
           <CardContent>
             {loadingRecent ? (
               <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
             ) : !recentTransactions?.length ? (
               <div className="text-center py-8 text-muted-foreground">
-                <p>No transactions yet</p>
+                <p>Nessuna transazione</p>
                 <Button asChild variant="outline" size="sm" className="mt-2">
-                  <Link to="/transactions/new">Add your first transaction</Link>
+                  <Link to="/transactions/new">Aggiungi la prima transazione</Link>
                 </Button>
               </div>
             ) : (
@@ -309,7 +312,7 @@ export default function Dashboard() {
                         {((t.categories as any)?.name || "?")[0]}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{t.merchant || t.description || "Transaction"}</p>
+                        <p className="text-sm font-medium truncate">{t.merchant || t.description || "Transazione"}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
                       </div>
                     </div>
@@ -326,16 +329,16 @@ export default function Dashboard() {
         {/* Budget Progress */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Budget Progress</CardTitle>
+            <CardTitle className="text-lg">Stato Budget</CardTitle>
           </CardHeader>
           <CardContent>
             {loadingBudgets ? (
               <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
             ) : !budgets?.length ? (
               <div className="text-center py-8 text-muted-foreground">
-                <p>No budgets set up yet</p>
+                <p>Nessun budget configurato</p>
                 <Button asChild variant="outline" size="sm" className="mt-2">
-                  <Link to="/budgets">Create a budget</Link>
+                  <Link to="/budgets">Crea un budget</Link>
                 </Button>
               </div>
             ) : (
@@ -343,7 +346,7 @@ export default function Dashboard() {
                 {budgets.map((b) => (
                   <div key={b.id} className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{(b.categories as any)?.name || "Category"}</span>
+                      <span className="font-medium">{(b.categories as any)?.name || "Categoria"}</span>
                       <span className="text-muted-foreground tabular-nums">
                         {formatCurrency(b.spent)} / {formatCurrency(Number(b.amount))}
                       </span>
