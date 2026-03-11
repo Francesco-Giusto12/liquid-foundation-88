@@ -52,7 +52,7 @@ const App = () => (
             <Route path="/transactions" element={<ProtectedPage><Transactions /></ProtectedPage>} />
             <Route path="/transactions/new" element={<ProtectedPage><NewTransaction /></ProtectedPage>} />
             <Route path="/import" element={<ProtectedPage><ImportCsv /></ProtectedPage>} />
-            <Route path="/budgets" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
+            <Route path="/budgets" element={<ProtectedPage><Budgets /></ProtectedPage>} />
             <Route path="/reports" element={<ProtectedPage><Reports /></ProtectedPage>} />
             <Route path="/settings" element={<ProtectedPage><Settings /></ProtectedPage>} />
             <Route path="/settings/security" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
