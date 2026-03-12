@@ -35,9 +35,14 @@ export default function Transactions() {
     });
   }, []);
 
+  // Read account filter from URL
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialAccount = searchParams.get("account") || "all";
+
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterAccount, setFilterAccount] = useState<string>(initialAccount);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
