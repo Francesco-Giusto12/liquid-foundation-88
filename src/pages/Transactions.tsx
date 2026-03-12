@@ -93,7 +93,7 @@ export default function Transactions() {
       if (filterAccount !== "all" && t.account_id !== filterAccount) return false;
       return true;
     });
-  }, [transactions, filterMonth, filterType, filterCategory]);
+  }, [transactions, filterMonth, filterType, filterCategory, filterAccount]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
