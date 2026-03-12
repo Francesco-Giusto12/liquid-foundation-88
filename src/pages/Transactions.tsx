@@ -35,9 +35,14 @@ export default function Transactions() {
     });
   }, []);
 
+  // Read account filter from URL
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialAccount = searchParams.get("account") || "all";
+
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterAccount, setFilterAccount] = useState<string>(initialAccount);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [bulkCategoryId, setBulkCategoryId] = useState<string>("");
@@ -46,6 +51,16 @@ export default function Transactions() {
     queryKey: ["categories"],
     queryFn: async () => {
       const { data, error } = await supabase.from("categories").select("*").order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const { data: accountsList } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("accounts").select("id, name").order("name");
       if (error) throw error;
       return data;
     },
@@ -75,9 +90,10 @@ export default function Transactions() {
       }
       if (filterType !== "all" && t.type !== filterType) return false;
       if (filterCategory !== "all" && t.category_id !== filterCategory) return false;
+      if (filterAccount !== "all" && t.account_id !== filterAccount) return false;
       return true;
     });
-  }, [transactions, filterMonth, filterType, filterCategory]);
+  }, [transactions, filterMonth, filterType, filterCategory, filterAccount]);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -189,6 +205,18 @@ export default function Transactions() {
                     {c.name}
                   </span>
                 </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filterAccount} onValueChange={setFilterAccount}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Conto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti i conti</SelectItem>
+              {accountsList?.map((a) => (
+                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>

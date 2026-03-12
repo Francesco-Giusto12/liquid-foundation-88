@@ -155,8 +155,8 @@ export default function Dashboard() {
     ?.filter((t) => Number(t.amount) < 0)
     .reduce((s, t) => s + Math.abs(Number(t.amount)), 0) || 0;
   const netCashFlow = monthlyIncome - monthlyExpenses;
-  const totalBalance = monthlyTransactions
-    ?.reduce((s, t) => s + Number(t.amount), 0) || 0;
+  const totalBalance = liquidityData?.bt ?? (monthlyTransactions
+    ?.reduce((s, t) => s + Number(t.amount), 0) || 0);
 
   const loading = loadingMonthly;
 
