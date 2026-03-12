@@ -208,6 +208,18 @@ export default function Transactions() {
               ))}
             </SelectContent>
           </Select>
+
+          <Select value={filterAccount} onValueChange={setFilterAccount}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Conto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti i conti</SelectItem>
+              {accountsList?.map((a) => (
+                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 

@@ -228,11 +228,71 @@ export default function ImportCsv() {
               <span className="text-muted-foreground"><strong>{result.duplicate_count}</strong> duplicate</span>
               <span className="text-muted-foreground"><strong>{result.error_count}</strong> errori</span>
             </div>
-            <Button variant="outline" onClick={() => { setFile(null); setResult(null); }}>
-              Importa un altro file
-            </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* Associate account step */}
+      {result && result.imported_count > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Link2 className="h-4 w-4" />Associa conto
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Associa le {result.imported_count} transazioni importate a un conto esistente.
+            </p>
+            <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleziona un conto…" />
+              </SelectTrigger>
+              <SelectContent>
+                {accounts?.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2">
+              <Button
+                disabled={!selectedAccountId || assigningAccount}
+                onClick={async () => {
+                  setAssigningAccount(true);
+                  try {
+                    // Get import hashes of just-imported transactions (those without account_id, recent)
+                    const { error } = await supabase
+                      .from("transactions")
+                      .update({ account_id: selectedAccountId })
+                      .is("account_id", null)
+                      .eq("user_id", user!.id);
+                    if (error) throw error;
+                    toast.success("Transazioni associate al conto");
+                    queryClient.invalidateQueries({ queryKey: ["transactions"] });
+                    queryClient.invalidateQueries({ queryKey: ["account-tx-sums"] });
+                  } catch {
+                    toast.error("Errore nell'associazione");
+                  }
+                  setAssigningAccount(false);
+                }}
+              >
+                {assigningAccount ? "Associazione…" : "Associa"}
+              </Button>
+              <Button variant="ghost" onClick={() => { setFile(null); setResult(null); }}>
+                Salta
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Import another file (only when no account step showing) */}
+      {result && result.imported_count === 0 && (
+        <div className="text-center">
+          <Button variant="outline" onClick={() => { setFile(null); setResult(null); }}>
+            Importa un altro file
+          </Button>
+        </div>
       )}
     </div>
   );
