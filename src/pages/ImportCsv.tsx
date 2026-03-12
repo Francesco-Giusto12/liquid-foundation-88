@@ -28,6 +28,7 @@ interface ImportResult {
   imported_count: number;
   duplicate_count: number;
   error_count: number;
+  import_hashes?: string[];
 }
 
 export default function ImportCsv() {
