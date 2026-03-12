@@ -57,6 +57,16 @@ export default function Transactions() {
     enabled: !!user,
   });
 
+  const { data: accountsList } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("accounts").select("id, name").order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
   const { data: transactions, isLoading } = useQuery({
     queryKey: ["transactions-all"],
     queryFn: async () => {
