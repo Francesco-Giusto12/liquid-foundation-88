@@ -90,6 +90,7 @@ export default function Transactions() {
       }
       if (filterType !== "all" && t.type !== filterType) return false;
       if (filterCategory !== "all" && t.category_id !== filterCategory) return false;
+      if (filterAccount !== "all" && t.account_id !== filterAccount) return false;
       return true;
     });
   }, [transactions, filterMonth, filterType, filterCategory]);
