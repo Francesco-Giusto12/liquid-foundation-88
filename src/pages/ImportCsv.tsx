@@ -32,6 +32,7 @@ interface ImportResult {
 }
 
 export default function ImportCsv() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -42,6 +43,18 @@ export default function ImportCsv() {
   const [mappingError, setMappingError] = useState<string | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [availableHeaders, setAvailableHeaders] = useState<string[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
+  const [assigningAccount, setAssigningAccount] = useState(false);
+
+  const { data: accounts } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("accounts").select("id, name, type").order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
