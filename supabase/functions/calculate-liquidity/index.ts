@@ -84,13 +84,21 @@ Deno.serve(async (req: Request) => {
       periodDate.getFullYear(),
       periodDate.getMonth(),
       1
-    ).toISOString().split("T")[0];
+const b0: number = b0Data ?? 0;
+const b0Missing = b0Data === null;
 
-    const periodEnd = new Date(
-      periodDate.getFullYear(),
-      periodDate.getMonth() + 1,
-      0
-    ).toISOString().split("T")[0];
+// Recupera saldo iniziale dai conti bancari
+const { data: accountsData } = await supabase
+  .from("accounts")
+  .select("balance")
+  .eq("user_id", user.id)
+  .eq("is_active", true);
+
+const accountsBalance = (accountsData ?? []).reduce(
+  (sum: number, acc: any) => sum + Number(acc.balance), 0
+);
+
+const bt = round2(accountsBalance + e_total - u_total);
 
     // ── Recupera saldo iniziale ─────────────────────────────
     const { data: b0Data } = await supabase.rpc(
