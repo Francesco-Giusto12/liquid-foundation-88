@@ -109,6 +109,17 @@ const bt = round2(accountsBalance + e_total - u_total);
     const b0: number = b0Data ?? 0;
     const b0Missing = b0Data === null;
 
+    const { data: accountsData } = await supabase
+      .from("accounts")
+      .select("balance")
+      .eq("user_id", user.id)
+      .eq("is_active", true);
+
+    const accountsBalance = (accountsData ?? []).reduce(
+      (sum, acc: any) => sum + Number(acc.balance),
+      0
+    );
+
     // ── Recupera movimenti del periodo ──────────────────────
     const { data: transactions, error: txError } = await supabase
       .from("transactions")
@@ -153,7 +164,7 @@ const bt = round2(accountsBalance + e_total - u_total);
     e_tax   = round2(e_tax);
     e_uncat = round2(e_uncat);
 
-    const bt = round2(b0 + e_total - u_total);
+    const bt = round2(accountsBalance + e_total - u_total);
 
     // ── Recupera aliquota regime ────────────────────────────
     const { data: alphaData } = await supabase.rpc(
