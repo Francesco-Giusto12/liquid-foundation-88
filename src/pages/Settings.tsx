@@ -45,6 +45,10 @@ export default function Settings() {
   const [a3Threshold, setA3Threshold] = useState("");
   const [a5Threshold, setA5Threshold] = useState("");
 
+  // ─── Aliquote analitiche IVA / IRPEF / INPS ───
+  const [taxRates, setTaxRates] = useState({ iva: "", irpef: "", inps: "" });
+  const [savingRates, setSavingRates] = useState(false);
+
   // ─── Queries ───
   const { data: categories, isLoading: loadingCats } = useQuery({
     queryKey: ["categories"],
@@ -64,6 +68,27 @@ export default function Settings() {
         .select("*")
         .order("valid_from", { ascending: false });
       if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Carica aliquote analitiche salvate
+  useQuery({
+    queryKey: ["tax-rates"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("tax_rates")
+        .select("iva, irpef, inps")
+        .eq("user_id", user!.id)
+        .single();
+      if (data) {
+        setTaxRates({
+          iva:   data.iva   !== null ? String(Math.round(Number(data.iva)   * 100)) : "",
+          irpef: data.irpef !== null ? String(Math.round(Number(data.irpef) * 100)) : "",
+          inps:  data.inps  !== null ? String(Math.round(Number(data.inps)  * 100)) : "",
+        });
+      }
       return data;
     },
     enabled: !!user,
@@ -171,6 +196,30 @@ export default function Settings() {
   };
 
   const activeRegime = taxHistory?.find((r) => !r.valid_to);
+
+  const saveTaxRates = async () => {
+    if (!user) return;
+    setSavingRates(true);
+    try {
+      const payload = {
+        user_id: user.id,
+        iva:   taxRates.iva   ? Number(taxRates.iva)   / 100 : null,
+        irpef: taxRates.irpef ? Number(taxRates.irpef) / 100 : null,
+        inps:  taxRates.inps  ? Number(taxRates.inps)  / 100 : null,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase
+        .from("tax_rates")
+        .upsert(payload, { onConflict: "user_id" });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["tax-rates"] });
+      queryClient.invalidateQueries({ queryKey: ["liquidity"] });
+      toast.success("Aliquote salvate — liquidità aggiornata");
+    } catch {
+      toast.error("Errore nel salvataggio delle aliquote");
+    }
+    setSavingRates(false);
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
@@ -415,6 +464,93 @@ export default function Settings() {
                 </Button>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ─── Aliquote analitiche IVA / IRPEF / INPS ─── */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Aliquote fiscali analitiche</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Usate per il breakdown IVA / IRPEF / INPS nella dashboard e dopo ogni import CSV.
+            Lascia vuoto ciò che non si applica al tuo regime.
+          </p>
+        </div>
+        <Card>
+          <CardContent className="pt-6 space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* IVA */}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5 text-sm">
+                  <span className="text-base">🧾</span>
+                  IVA <span className="text-muted-foreground font-normal text-xs">(% sulle entrate imponibili)</span>
+                </Label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={taxRates.iva}
+                    onChange={(e) => setTaxRates((r) => ({ ...r, iva: e.target.value }))}
+                    placeholder="22"
+                    className="h-9 tabular-nums"
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              </div>
+              {/* IRPEF */}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5 text-sm">
+                  <span className="text-base">📊</span>
+                  IRPEF <span className="text-muted-foreground font-normal text-xs">(% sul reddito)</span>
+                </Label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={taxRates.irpef}
+                    onChange={(e) => setTaxRates((r) => ({ ...r, irpef: e.target.value }))}
+                    placeholder="15"
+                    className="h-9 tabular-nums"
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              </div>
+              {/* INPS */}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5 text-sm">
+                  <span className="text-base">🛡️</span>
+                  INPS <span className="text-muted-foreground font-normal text-xs">(% contributi)</span>
+                </Label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={taxRates.inps}
+                    onChange={(e) => setTaxRates((r) => ({ ...r, inps: e.target.value }))}
+                    placeholder="26"
+                    className="h-9 tabular-nums"
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                Totale accantonamento stimato:{" "}
+                <strong>
+                  {[taxRates.iva, taxRates.irpef, taxRates.inps]
+                    .filter(Boolean)
+                    .reduce((s, v) => s + Number(v), 0)}%
+                </strong>
+              </p>
+              <Button size="sm" onClick={saveTaxRates} disabled={savingRates}>
+                {savingRates ? "Salvataggio…" : "Salva aliquote"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </section>

@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, startOfMonth } from "date-fns";
-import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Link2 } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle } from "lucide-react";
 import { importCsv, calculateLiquidity, evaluateAlerts } from "@/lib/edge-functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { FiscalBreakdown } from "@/components/FiscalBreakdown";
 
 interface PreviewData {
   headers: string[];
@@ -31,6 +32,22 @@ interface ImportResult {
   import_hashes?: string[];
 }
 
+// Tipo per i dati di liquidità post-import
+interface LiquiditySnapshot {
+  bt: number;
+  e_tax: number;
+  f: number;
+  lr: number;
+  breakdown: {
+    f_iva: number;
+    f_irpef: number;
+    f_inps: number;
+    alpha_iva: number | null;
+    alpha_irpef: number | null;
+    alpha_inps: number | null;
+  };
+}
+
 export default function ImportCsv() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -39,12 +56,12 @@ export default function ImportCsv() {
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [liquiditySnapshot, setLiquiditySnapshot] = useState<LiquiditySnapshot | null>(null);
   const [needsMapping, setNeedsMapping] = useState(false);
   const [mappingError, setMappingError] = useState<string | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [availableHeaders, setAvailableHeaders] = useState<string[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
-  const [assigningAccount, setAssigningAccount] = useState(false);
 
   const { data: accounts } = useQuery({
     queryKey: ["accounts"],
@@ -56,9 +73,21 @@ export default function ImportCsv() {
     enabled: !!user,
   });
 
+  useEffect(() => {
+    if (accounts?.length === 1 && !selectedAccountId) {
+      setSelectedAccountId(accounts[0].id);
+    }
+  }, [accounts]);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) { setFile(f); setPreview(null); setResult(null); setNeedsMapping(false); }
+    if (f) {
+      setFile(f);
+      setPreview(null);
+      setResult(null);
+      setLiquiditySnapshot(null);
+      setNeedsMapping(false);
+    }
   };
 
   const handlePreview = async () => {
@@ -74,7 +103,6 @@ export default function ImportCsv() {
       } else if (res.success) {
         setPreview(res);
         setNeedsMapping(false);
-        // Store mapping from preview for use in confirm step
         if (res.mapping) {
           setMapping({
             date_col: res.mapping.date_col || "",
@@ -94,20 +122,45 @@ export default function ImportCsv() {
     setLoading(true);
     try {
       const m = Object.keys(mapping).length > 0 ? mapping : preview?.mapping;
-      console.log("[ImportCsv] confirm call - mapping:", JSON.stringify(m));
       const res = await importCsv(file, true, m ?? undefined);
-      console.log("[ImportCsv] confirm response:", JSON.stringify(res));
       if (res.success) {
+        if (selectedAccountId && user) {
+          await supabase
+            .from("transactions")
+            .update({ account_id: selectedAccountId })
+            .is("account_id", null)
+            .eq("user_id", user.id);
+        }
         setResult(res);
         setPreview(null);
         toast.success(`${res.imported_count} transazioni importate`);
         queryClient.invalidateQueries({ queryKey: ["transactions"] });
         queryClient.invalidateQueries({ queryKey: ["accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["account-tx-sums"] });
+
+        // ── Calcola liquidità e salva snapshot per breakdown ──
         const period = format(startOfMonth(new Date()), "yyyy-MM-dd");
-        calculateLiquidity(period).then(() => queryClient.invalidateQueries({ queryKey: ["liquidity"] }));
+        const liquidityRes = await calculateLiquidity(period);
+        queryClient.invalidateQueries({ queryKey: ["liquidity"] });
         evaluateAlerts(period).then(() => queryClient.invalidateQueries({ queryKey: ["alerts"] }));
+
+        if (liquidityRes?.data) {
+          setLiquiditySnapshot({
+            bt: liquidityRes.data.bt ?? 0,
+            e_tax: liquidityRes.data.e_tax ?? 0,
+            f: liquidityRes.data.f ?? 0,
+            lr: liquidityRes.data.lr ?? 0,
+            breakdown: liquidityRes.data.breakdown ?? {
+              f_iva: 0, f_irpef: 0, f_inps: 0,
+              alpha_iva: null, alpha_irpef: null, alpha_inps: null,
+            },
+          });
+        }
       }
-    } catch (err) { console.error("[ImportCsv] confirm error:", err); toast.error("Errore durante l'importazione"); }
+    } catch (err) {
+      console.error("[ImportCsv] confirm error:", err);
+      toast.error("Errore durante l'importazione");
+    }
     setLoading(false);
   };
 
@@ -163,6 +216,19 @@ export default function ImportCsv() {
                 </Select>
               </div>
             </div>
+            {accounts && accounts.length > 1 && (
+              <div>
+                <Label>Conto di destinazione</Label>
+                <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona un conto…" /></SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <Button className="w-full" disabled={!mapping.date_col || !mapping.amount_col || loading} onClick={handleConfirm}>
               {loading ? "Importazione…" : "Importa con questo mapping"}
             </Button>
@@ -210,6 +276,19 @@ export default function ImportCsv() {
             {preview.error_count > 0 && (
               <p className="text-xs text-[hsl(var(--warning))]">⚠ {preview.error_count} righe con errori saranno ignorate</p>
             )}
+            {accounts && accounts.length > 1 && (
+              <div>
+                <Label className="text-sm font-medium">Conto di destinazione</Label>
+                <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                  <SelectTrigger><SelectValue placeholder="Seleziona un conto…" /></SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <Button className="w-full" onClick={handleConfirm} disabled={loading}>
               {loading ? "Importazione…" : `Importa ${preview.total_rows - preview.error_count} transazioni`}
             </Button>
@@ -217,82 +296,47 @@ export default function ImportCsv() {
         </Card>
       )}
 
-      {/* Result */}
+      {/* ── Result + Breakdown fiscale ── */}
       {result && (
-        <Card>
-          <CardContent className="pt-6 text-center space-y-3">
-            <CheckCircle className="h-12 w-12 mx-auto text-[hsl(var(--success))]" />
-            <h3 className="font-semibold text-lg">Importazione completata</h3>
-            <div className="flex justify-center gap-4 text-sm">
-              <span><strong>{result.imported_count}</strong> importate</span>
-              <span className="text-muted-foreground"><strong>{result.duplicate_count}</strong> duplicate</span>
-              <span className="text-muted-foreground"><strong>{result.error_count}</strong> errori</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <>
+          <Card>
+            <CardContent className="pt-6 text-center space-y-3">
+              <CheckCircle className="h-12 w-12 mx-auto text-[hsl(var(--success))]" />
+              <h3 className="font-semibold text-lg">Importazione completata</h3>
+              <div className="flex justify-center gap-4 text-sm">
+                <span><strong>{result.imported_count}</strong> importate</span>
+                <span className="text-muted-foreground"><strong>{result.duplicate_count}</strong> duplicate</span>
+                <span className="text-muted-foreground"><strong>{result.error_count}</strong> errori</span>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Associate account step */}
-      {result && result.imported_count > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Link2 className="h-4 w-4" />Associa conto
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Associa le {result.imported_count} transazioni importate a un conto esistente.
-            </p>
-            <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Seleziona un conto…" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts?.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <Button
-                disabled={!selectedAccountId || assigningAccount}
-                onClick={async () => {
-                  setAssigningAccount(true);
-                  try {
-                    // Get import hashes of just-imported transactions (those without account_id, recent)
-                    const { error } = await supabase
-                      .from("transactions")
-                      .update({ account_id: selectedAccountId })
-                      .is("account_id", null)
-                      .eq("user_id", user!.id);
-                    if (error) throw error;
-                    toast.success("Transazioni associate al conto");
-                    queryClient.invalidateQueries({ queryKey: ["transactions"] });
-                    queryClient.invalidateQueries({ queryKey: ["account-tx-sums"] });
-                  } catch {
-                    toast.error("Errore nell'associazione");
-                  }
-                  setAssigningAccount(false);
-                }}
-              >
-                {assigningAccount ? "Associazione…" : "Associa"}
-              </Button>
-              <Button variant="ghost" onClick={() => { setFile(null); setResult(null); }}>
-                Salta
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          {/* Breakdown fiscale — mostrato subito dopo l'import */}
+          {liquiditySnapshot && (
+            <FiscalBreakdown
+              totalBalance={liquiditySnapshot.bt}
+              taxableIncome={liquiditySnapshot.e_tax}
+              totalProvision={liquiditySnapshot.f}
+              liquidita={liquiditySnapshot.lr}
+              breakdown={liquiditySnapshot.breakdown}
+              variant="full"
+            />
+          )}
 
-      {/* Import another file (only when no account step showing) */}
-      {result && result.imported_count === 0 && (
-        <div className="text-center">
-          <Button variant="outline" onClick={() => { setFile(null); setResult(null); }}>
-            Importa un altro file
-          </Button>
-        </div>
+          <div className="text-center">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFile(null);
+                setResult(null);
+                setLiquiditySnapshot(null);
+                setSelectedAccountId("");
+              }}
+            >
+              Importa un altro file
+            </Button>
+          </div>
+        </>
       )}
     </div>
   );

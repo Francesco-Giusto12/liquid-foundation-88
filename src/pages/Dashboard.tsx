@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -10,15 +10,36 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "react-router-dom";
-import { Plus, TrendingUp, TrendingDown, DollarSign, ArrowUpDown, ShieldAlert, AlertTriangle, Info, Calendar } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { Plus, DollarSign, ShieldAlert, AlertTriangle, Info, Calendar, TrendingUp } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
 import { it } from "date-fns/locale";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
+import { FiscalBreakdown } from "@/components/FiscalBreakdown";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const { data: profileOnboarding, isLoading: loadingOnboarding } = useQuery({
+    queryKey: ["profile-onboarding", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("onboarding_completed")
+        .eq("id", user!.id)
+        .single();
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const needsOnboarding = !loadingOnboarding && profileOnboarding && !(profileOnboarding as any).onboarding_completed;
 
   const { data: latestMonth } = useQuery({
     queryKey: ["latest-transaction-month"],
@@ -46,20 +67,6 @@ export default function Dashboard() {
   const periodDate = new Date(periodStart);
   const monthStart = format(startOfMonth(periodDate), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(periodDate), "yyyy-MM-dd");
-
-  const { data: monthlyTransactions, isLoading: loadingMonthly } = useQuery({
-    queryKey: ["transactions-monthly", monthStart, monthEnd],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("amount, type")
-        .gte("date", monthStart)
-        .lte("date", monthEnd);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user && !!latestMonth,
-  });
 
   const { data: liquidityData, isLoading: loadingLiquidity } = useQuery({
     queryKey: ["liquidity", monthStart],
@@ -148,56 +155,66 @@ export default function Dashboard() {
     enabled: !!user && !!latestMonth,
   });
 
-  const monthlyIncome = monthlyTransactions
-    ?.filter((t) => Number(t.amount) > 0)
-    .reduce((s, t) => s + Number(t.amount), 0) || 0;
-  const monthlyExpenses = monthlyTransactions
-    ?.filter((t) => Number(t.amount) < 0)
-    .reduce((s, t) => s + Math.abs(Number(t.amount)), 0) || 0;
-  const netCashFlow = monthlyIncome - monthlyExpenses;
-  const totalBalance = liquidityData?.bt ?? (monthlyTransactions
-    ?.reduce((s, t) => s + Number(t.amount), 0) || 0);
+  const { data: accountBalances } = useQuery({
+    queryKey: ["account-balances"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("accounts")
+        .select("balance")
+        .eq("is_active", true);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
 
-  const loading = loadingMonthly;
+  const accountsTotal = accountBalances?.reduce((s, a) => s + Number(a.balance ?? 0), 0) || 0;
+  const totalBalance = liquidityData?.bt ?? accountsTotal;
+
+  if (needsOnboarding || showOnboarding) {
+    return (
+      <OnboardingWizard
+        onComplete={() => {
+          setShowOnboarding(false);
+          queryClient.invalidateQueries({ queryKey: ["profile-onboarding"] });
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header: title + period selector + buttons */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <div className="hidden md:flex items-center gap-2">
-            <Button asChild size="sm">
-              <Link to="/transactions/new"><Plus className="mr-1 h-4 w-4" />Nuova Transazione</Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link to="/accounts"><Plus className="mr-1 h-4 w-4" />Nuovo Conto</Link>
-            </Button>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={periodStart} onValueChange={setSelectedPeriod}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-          <Select value={periodStart} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[180px] h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {monthOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="flex md:hidden items-center gap-2 ml-auto">
-            <Button asChild size="sm">
-              <Link to="/transactions/new"><Plus className="h-4 w-4" /></Link>
-            </Button>
-          </div>
+          <Button asChild size="sm">
+            <Link to="/transactions/new"><Plus className="mr-1 h-4 w-4" />Nuova Transazione</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/accounts"><Plus className="mr-1 h-4 w-4" />Aggiungi Conto</Link>
+          </Button>
         </div>
       </div>
 
-      {/* Liquidity Warnings */}
+      {/* Warnings */}
       {liquidityData && (
         <div className="space-y-2">
           {liquidityData.alpha === null && (
@@ -221,51 +238,121 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* KPI Cards - 2x2 on mobile, 4 cols on lg */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard title="Saldo Totale" value={totalBalance} icon={<DollarSign className="h-4 w-4" />} loading={loading} />
-        <KpiCard title="Entrate Mensili" value={monthlyIncome} icon={<TrendingUp className="h-4 w-4" />} loading={loading} color="text-[hsl(var(--success))]" />
-        <KpiCard title="Uscite Mensili" value={monthlyExpenses} icon={<TrendingDown className="h-4 w-4" />} loading={loading} color="text-destructive" />
-        <KpiCard title="Flusso Netto" value={netCashFlow} icon={<ArrowUpDown className="h-4 w-4" />} loading={loading} color={netCashFlow >= 0 ? "text-[hsl(var(--success))]" : "text-destructive"} />
-      </div>
-
-      {/* Liquidity KPI Cards - stack vertically on mobile */}
-      {liquidityData && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <KpiCard title="Saldo Corrente" value={liquidityData.bt} icon={<DollarSign className="h-4 w-4" />} loading={loadingLiquidity} />
-          <KpiCard title="Accantonamento Fiscale" value={liquidityData.f} icon={<ShieldAlert className="h-4 w-4" />} loading={loadingLiquidity} />
-          <Card className={liquidityData.lr < 0 ? "border-destructive bg-destructive/5" : ""}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-muted-foreground font-medium">Liquidità Reale</span>
-                <span className="text-muted-foreground"><ShieldAlert className="h-4 w-4" /></span>
-              </div>
+      {/* 3 KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <DollarSign className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Saldo Totale</p>
               {loadingLiquidity ? (
-                <Skeleton className="h-7 w-24" />
+                <Skeleton className="h-7 w-28 mt-1" />
               ) : (
-                <p className={`text-xl font-bold tabular-nums ${liquidityData.lr < 0 ? "text-destructive" : "text-[hsl(var(--success))]"}`}>
-                  {formatCurrency(liquidityData.lr)}
+                <p className="text-xl font-bold tabular-nums">{formatCurrency(totalBalance)}</p>
+              )}
+            </div>
+            <svg className="h-8 w-16 text-primary/40 shrink-0" viewBox="0 0 64 32">
+              <polyline points="0,28 12,20 24,22 36,14 48,16 64,8" fill="none" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </CardContent>
+        </Card>
+
+        <Card className="border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/5">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-[hsl(var(--warning))]/15 flex items-center justify-center shrink-0">
+              <ShieldAlert className="h-5 w-5 text-[hsl(var(--warning))]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Accantonamento Fiscale</p>
+              {loadingLiquidity ? (
+                <Skeleton className="h-7 w-28 mt-1" />
+              ) : (
+                <p className="text-xl font-bold tabular-nums">{formatCurrency(liquidityData?.f ?? 0)}</p>
+              )}
+              {/* Breakdown mini IVA / IRPEF / INPS */}
+              {!loadingLiquidity && liquidityData?.breakdown && liquidityData.f > 0 && (
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {liquidityData.breakdown.f_iva > 0 && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 tabular-nums">
+                      IVA {formatCurrency(liquidityData.breakdown.f_iva)}
+                    </span>
+                  )}
+                  {liquidityData.breakdown.f_irpef > 0 && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 tabular-nums">
+                      IRPEF {formatCurrency(liquidityData.breakdown.f_irpef)}
+                    </span>
+                  )}
+                  {liquidityData.breakdown.f_inps > 0 && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300 tabular-nums">
+                      INPS {formatCurrency(liquidityData.breakdown.f_inps)}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={liquidityData && liquidityData.lr < 0 ? "border-destructive bg-destructive/5" : "border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5"}>
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-[hsl(var(--success))]/15 flex items-center justify-center shrink-0">
+              <TrendingUp className="h-5 w-5 text-[hsl(var(--success))]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground font-medium">Liquidità Reale</p>
+              {loadingLiquidity ? (
+                <Skeleton className="h-7 w-28 mt-1" />
+              ) : (
+                <p className={`text-xl font-bold tabular-nums ${liquidityData && liquidityData.lr < 0 ? "text-destructive" : "text-[hsl(var(--success))]"}`}>
+                  {formatCurrency(liquidityData?.lr ?? 0)}
                 </p>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            <svg className="h-8 w-16 text-[hsl(var(--success))]/40 shrink-0" viewBox="0 0 64 32">
+              <polyline points="0,24 16,20 32,16 48,10 64,6" fill="none" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Breakdown fiscale esteso — visibile quando i dati sono disponibili */}
+      {!loadingLiquidity && liquidityData && liquidityData.f > 0 && liquidityData.breakdown && (
+        <FiscalBreakdown
+          totalBalance={totalBalance}
+          taxableIncome={liquidityData.e_tax ?? 0}
+          totalProvision={liquidityData.f}
+          liquidita={liquidityData.lr}
+          breakdown={liquidityData.breakdown}
+          variant="compact"
+        />
       )}
 
-      {/* Cash Flow Chart */}
+      {/* Area Chart */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Flusso di Cassa (Ultimi 6 Mesi)</CardTitle>
+          <CardTitle className="text-lg">Flusso di Cassa Mensile</CardTitle>
         </CardHeader>
         <CardContent>
           {loadingChart ? (
             <Skeleton className="h-64 w-full" />
           ) : (
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={chartData}>
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="fillIncome" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#16a34a" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#16a34a" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="fillExpenses" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#e11d48" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#e11d48" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
-                <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => `€ ${v.toLocaleString("it-IT")}`} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",
@@ -275,18 +362,22 @@ export default function Dashboard() {
                   }}
                   formatter={(value: number) => formatCurrency(value)}
                 />
-                <Legend />
-                <Line type="monotone" dataKey="income" stroke="hsl(var(--success))" strokeWidth={2} name="Entrate" />
-                <Line type="monotone" dataKey="expenses" stroke="hsl(var(--destructive))" strokeWidth={2} name="Uscite" />
-              </LineChart>
+                <Legend
+                  formatter={(value) => (
+                    <span className="text-xs">{value}</span>
+                  )}
+                />
+                <Area type="monotone" dataKey="income" stroke="#16a34a" strokeWidth={2} fill="url(#fillIncome)" name="Entrate" />
+                <Area type="monotone" dataKey="expenses" stroke="#e11d48" strokeWidth={2} fill="url(#fillExpenses)" name="Uscite" />
+              </AreaChart>
             </ResponsiveContainer>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent Transactions */}
-        <Card>
+      {/* Bottom: Transactions Table + Budget */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-lg">Transazioni Recenti</CardTitle>
           </CardHeader>
@@ -294,53 +385,68 @@ export default function Dashboard() {
             {loadingRecent ? (
               <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
             ) : !recentTransactions?.length ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Nessuna transazione</p>
-                <Button asChild variant="outline" size="sm" className="mt-2">
-                  <Link to="/transactions/new">Aggiungi la prima transazione</Link>
-                </Button>
-              </div>
+              <EmptyState
+                illustration="transactions"
+                title="Nessun dato per questo periodo"
+                subtitle="Importa un CSV o aggiungi la tua prima transazione per vedere la tua liquidità reale"
+                cta={{ label: "Importa CSV", to: "/import" }}
+                secondaryCta={{ label: "+ Aggiungi transazione", to: "/transactions/new" }}
+              />
             ) : (
-              <div className="space-y-2">
-                {recentTransactions.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium shrink-0"
-                        style={{ backgroundColor: (t.categories as any)?.color || "hsl(var(--muted))", color: "#fff" }}
-                      >
-                        {((t.categories as any)?.name || "?")[0]}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{t.merchant || t.description || "Transazione"}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(t.date)}</p>
-                      </div>
-                    </div>
-                    <span className={`text-sm font-medium tabular-nums ${Number(t.amount) > 0 ? "text-[hsl(var(--success))]" : "text-destructive"}`}>
-                      {Number(t.amount) > 0 ? "+" : "-"}{formatCurrency(Math.abs(Number(t.amount)))}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Descrizione</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead className="text-right">Importo</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentTransactions.map((t) => (
+                    <TableRow key={t.id}>
+                      <TableCell className="text-sm tabular-nums whitespace-nowrap">{formatDate(t.date)}</TableCell>
+                      <TableCell className="text-sm">{t.merchant || t.description || "Transazione"}</TableCell>
+                      <TableCell>
+                        {(t.categories as any)?.name ? (
+                          <Badge
+                            variant="secondary"
+                            style={{
+                              backgroundColor: (t.categories as any)?.color || undefined,
+                              color: (t.categories as any)?.color ? "#fff" : undefined,
+                            }}
+                          >
+                            {(t.categories as any).name}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-muted-foreground">Non categorizzata</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className={`text-sm font-medium tabular-nums text-right ${Number(t.amount) > 0 ? "text-[hsl(var(--success))]" : "text-destructive"}`}>
+                        {Number(t.amount) > 0 ? "+" : "-"}{formatCurrency(Math.abs(Number(t.amount)))}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
 
-        {/* Budget Progress */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Stato Budget</CardTitle>
+            <CardTitle className="text-lg">Budget</CardTitle>
           </CardHeader>
           <CardContent>
             {loadingBudgets ? (
               <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
             ) : !budgets?.length ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Nessun budget configurato</p>
-                <Button asChild variant="outline" size="sm" className="mt-2">
-                  <Link to="/budgets">Crea un budget</Link>
-                </Button>
-              </div>
+              <EmptyState
+                illustration="budgets"
+                title="Nessun budget configurato"
+                subtitle="Imposta un limite di spesa per categoria"
+                cta={{ label: "+ Crea budget", to: "/budgets" }}
+              />
             ) : (
               <div className="space-y-4">
                 {budgets.map((b) => (
@@ -352,11 +458,6 @@ export default function Dashboard() {
                       </span>
                     </div>
                     <Progress value={b.percentage} className="h-2" />
-                    <div className="flex justify-end">
-                      <Badge variant={b.percentage >= 90 ? "destructive" : b.percentage >= 70 ? "outline" : "secondary"} className="text-xs">
-                        {b.percentage}%
-                      </Badge>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -365,23 +466,5 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
-  );
-}
-
-function KpiCard({ title, value, icon, loading, color }: { title: string; value: number; icon: React.ReactNode; loading: boolean; color?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-muted-foreground font-medium">{title}</span>
-          <span className="text-muted-foreground">{icon}</span>
-        </div>
-        {loading ? (
-          <Skeleton className="h-7 w-24" />
-        ) : (
-          <p className={`text-xl font-bold tabular-nums ${color || ""}`}>{formatCurrency(value)}</p>
-        )}
-      </CardContent>
-    </Card>
   );
 }
