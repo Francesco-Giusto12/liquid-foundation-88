@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
+import OnboardingTour from "@/components/OnboardingTour";
 
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -58,6 +59,8 @@ const App = () => (
             <Route path="/settings/security" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          {/* Tour guidato — si attiva dopo il wizard al primo accesso */}
+          <OnboardingTour />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

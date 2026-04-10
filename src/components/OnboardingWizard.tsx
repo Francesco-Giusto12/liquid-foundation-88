@@ -434,7 +434,11 @@ function StepDone({
         Puoi modificare tutto in qualsiasi momento nelle <strong>Impostazioni</strong>.
       </p>
 
-      <Button size="lg" className="w-full max-w-xs mx-auto" onClick={onComplete}>
+      <Button size="lg" className="w-full max-w-xs mx-auto" onClick={() => {
+        // Resetta il tour così parte automaticamente dopo il wizard
+        localStorage.removeItem("liquido_tour_v1");
+        onComplete();
+      }}>
         Vai alla Dashboard 🚀
       </Button>
     </div>
