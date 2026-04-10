@@ -30,10 +30,10 @@ function ProtectedPage({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
       <AppLayout>{children}</AppLayout>
+      <OnboardingTour />
     </ProtectedRoute>
   );
 }
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -59,8 +59,6 @@ const App = () => (
             <Route path="/settings/security" element={<ProtectedPage><Placeholder /></ProtectedPage>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          {/* Tour guidato — si attiva dopo il wizard al primo accesso */}
-          <OnboardingTour />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
