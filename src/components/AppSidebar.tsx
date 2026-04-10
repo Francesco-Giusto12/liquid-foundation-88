@@ -1,7 +1,8 @@
-import { LayoutDashboard, Landmark, ArrowLeftRight, Target, BarChart3, Settings, LogOut, Upload } from "lucide-react";
+import { LayoutDashboard, Landmark, ArrowLeftRight, Target, BarChart3, Settings, LogOut, Upload, MapPin } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { RestartTourButton } from "@/components/OnboardingTour";
 import {
   Sidebar,
   SidebarContent,
@@ -86,6 +87,14 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          {/* Tour guidato */}
+          {!collapsed && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <RestartTourButton className="hover:bg-sidebar-accent/50 text-sidebar-foreground/70 flex items-center w-full px-2 py-1.5 text-sm rounded-md" />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton onClick={signOut} className="hover:bg-sidebar-accent/50 text-sidebar-foreground/70">
               <LogOut className="mr-2 h-4 w-4" />
