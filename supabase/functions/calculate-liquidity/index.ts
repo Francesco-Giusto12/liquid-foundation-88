@@ -1,25 +1,20 @@
 // supabase/functions/calculate-liquidity/index.ts
-//
-// Edge Function: Calcolo Liquidità Reale con breakdown IVA / IRPEF / INPS
-//
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ── Tipi ─────────────────────────────────────────────────────
-
 interface TaxBreakdown {
-  f_iva: number;    // quota IVA accantonata
-  f_irpef: number;  // quota IRPEF accantonata
-  f_inps: number;   // quota INPS accantonata
-  alpha_iva: number | null;   // aliquota IVA configurata (es. 0.22)
-  alpha_irpef: number | null; // aliquota IRPEF configurata (es. 0.15)
-  alpha_inps: number | null;  // aliquota INPS configurata (es. 0.26)
+  f_iva: number;
+  f_irpef: number;
+  f_inps: number;
+  alpha_iva: number | null;
+  alpha_irpef: number | null;
+  alpha_inps: number | null;
+  ateco_coefficient: number;
+  reddito_imponibile: number;
 }
 
 interface LiquidityResult {
@@ -30,19 +25,16 @@ interface LiquidityResult {
   u_total: number;
   e_tax: number;
   e_uncat: number;
-  f: number;                // accantonamento totale = f_iva + f_irpef + f_inps
+  f: number;
   lr: number;
-  alpha: number | null;     // aliquota totale legacy (mantenuta per compatibilità)
+  alpha: number | null;
   regime_key: string | null;
   lr_negative: boolean;
   has_uncategorized: boolean;
   uncat_count: number;
   quality_warning: boolean;
-  // NUOVO: breakdown fiscale
   breakdown: TaxBreakdown;
 }
-
-// ── Handler principale ────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -66,37 +58,21 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json().catch(() => ({}));
     const { period_start } = body;
-
     if (!period_start || !isValidDateString(period_start)) {
       return errorResponse(400, "Invalid period_start. Expected ISO date (YYYY-MM-DD)");
     }
 
     const periodDate = new Date(period_start);
-    const normalizedPeriod = new Date(
-      periodDate.getFullYear(), periodDate.getMonth(), 1
-    ).toISOString().slice(0, 10);
-    const periodEnd = new Date(
-      periodDate.getFullYear(), periodDate.getMonth() + 1, 0
-    ).toISOString().slice(0, 10);
+    const normalizedPeriod = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1).toISOString().slice(0, 10);
+    const periodEnd = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0).toISOString().slice(0, 10);
 
-    // ── Saldo iniziale ─────────────────────────────────────
-    const { data: b0Data } = await supabase.rpc(
-      "get_period_balance_start",
-      { p_user_id: user.id, p_period_start: normalizedPeriod }
-    );
+    const { data: b0Data } = await supabase.rpc("get_period_balance_start", { p_user_id: user.id, p_period_start: normalizedPeriod });
     const b0: number = b0Data ?? 0;
+    const b0Missing = b0Data === null;
 
-    // ── Saldo conti ────────────────────────────────────────
-    const { data: accountsData } = await supabase
-      .from("accounts")
-      .select("balance")
-      .eq("user_id", user.id)
-      .eq("is_active", true);
-    const accountsBalance = (accountsData ?? []).reduce(
-      (sum: number, acc: any) => sum + Number(acc.balance), 0
-    );
+    const { data: accountsData } = await supabase.from("accounts").select("balance").eq("user_id", user.id).eq("is_active", true);
+    const accountsBalance = (accountsData ?? []).reduce((sum: number, acc: any) => sum + Number(acc.balance), 0);
 
-    // ── Transazioni ────────────────────────────────────────
     const { data: transactions, error: txError } = await supabase
       .from("transactions")
       .select("amount, is_categorized, is_imponibile, category_id")
@@ -107,129 +83,97 @@ Deno.serve(async (req: Request) => {
 
     const txList = transactions ?? [];
     let e_total = 0, u_total = 0, e_tax = 0, e_uncat = 0, uncat_count = 0;
-
     for (const tx of txList) {
       const amount = Number(tx.amount);
       if (amount > 0) {
         e_total += amount;
         if (!tx.is_categorized) { e_uncat += amount; uncat_count++; }
         else if (tx.is_imponibile) { e_tax += amount; }
-      } else {
-        u_total += Math.abs(amount);
-      }
+      } else { u_total += Math.abs(amount); }
     }
-
-    e_total = round2(e_total);
-    u_total = round2(u_total);
-    e_tax   = round2(e_tax);
-    e_uncat = round2(e_uncat);
+    e_total = round2(e_total); u_total = round2(u_total); e_tax = round2(e_tax); e_uncat = round2(e_uncat);
     const bt = round2(accountsBalance + e_total - u_total);
 
-    // ── Aliquota regime legacy ─────────────────────────────
-    const { data: alphaData } = await supabase.rpc(
-      "get_aliquota_for_period",
-      { p_user_id: user.id, p_period_start: normalizedPeriod }
-    );
+    const { data: alphaData } = await supabase.rpc("get_aliquota_for_period", { p_user_id: user.id, p_period_start: normalizedPeriod });
     const alpha: number | null = alphaData !== null ? Number(alphaData) : null;
 
     let regime_key: string | null = null;
     if (alpha !== null) {
       const { data: regimeData } = await supabase
-        .from("tax_regime_history")
-        .select("regime_key")
-        .eq("user_id", user.id)
-        .lte("valid_from", normalizedPeriod)
-        .or(`valid_to.is.null,valid_to.gte.${normalizedPeriod}`)
-        .order("valid_from", { ascending: false })
-        .limit(1)
-        .single();
+        .from("tax_regime_history").select("regime_key").eq("user_id", user.id)
+        .lte("valid_from", normalizedPeriod).or(`valid_to.is.null,valid_to.gte.${normalizedPeriod}`)
+        .order("valid_from", { ascending: false }).limit(1).single();
       regime_key = regimeData?.regime_key ?? null;
     }
 
-    // ── Aliquote IVA / IRPEF / INPS dal profilo ────────────
-    // Lette dalla tabella tax_rates (nuova) o dal profilo se presente.
-    // Fallback: se non configurate, distribuzione proporzionale di alpha.
+    // ── Aliquote analitiche + coefficiente ATECO ───────────
     let alpha_iva: number | null = null;
     let alpha_irpef: number | null = null;
     let alpha_inps: number | null = null;
+    let ateco_coefficient: number = 1.0;
 
     const { data: taxRates } = await supabase
-      .from("tax_rates")
-      .select("iva, irpef, inps")
-      .eq("user_id", user.id)
-      .single();
+      .from("tax_rates").select("iva, irpef, inps, ateco_coefficient")
+      .eq("user_id", user.id).single();
 
     if (taxRates) {
-      alpha_iva   = taxRates.iva   !== null ? Number(taxRates.iva)   : null;
-      alpha_irpef = taxRates.irpef !== null ? Number(taxRates.irpef) : null;
-      alpha_inps  = taxRates.inps  !== null ? Number(taxRates.inps)  : null;
+      alpha_iva   = taxRates.iva   != null ? Number(taxRates.iva)   : null;
+      alpha_irpef = taxRates.irpef != null ? Number(taxRates.irpef) : null;
+      alpha_inps  = taxRates.inps  != null ? Number(taxRates.inps)  : null;
+      const rawCoeff = (taxRates as any).ateco_coefficient;
+      // Applica coefficiente ATECO solo per regime forfettario (R1)
+      if (rawCoeff != null && regime_key === "R1") {
+        ateco_coefficient = Number(rawCoeff);
+      }
     }
 
-    // ── Calcolo breakdown ──────────────────────────────────
-    // Se le aliquote analitiche sono configurate, le usiamo direttamente.
-    // Altrimenti, se c'è alpha legacy, usiamo proporzioni standard.
-    let f_iva   = 0;
-    let f_irpef = 0;
-    let f_inps  = 0;
+    // ── Calcolo con coefficiente ATECO ─────────────────────
+    // IVA: sul fatturato lordo (e_tax)
+    // IRPEF e INPS: sul reddito imponibile (e_tax * ateco_coefficient)
+    const reddito_imponibile = round2(e_tax * ateco_coefficient);
 
+    let f_iva = 0, f_irpef = 0, f_inps = 0;
     const hasAnalytic = alpha_iva !== null || alpha_irpef !== null || alpha_inps !== null;
 
     if (hasAnalytic) {
-      f_iva   = alpha_iva   !== null ? round2(alpha_iva   * e_tax) : 0;
-      f_irpef = alpha_irpef !== null ? round2(alpha_irpef * e_tax) : 0;
-      f_inps  = alpha_inps  !== null ? round2(alpha_inps  * e_tax) : 0;
+      f_iva   = alpha_iva   !== null ? round2(alpha_iva   * e_tax)              : 0;
+      f_irpef = alpha_irpef !== null ? round2(alpha_irpef * reddito_imponibile)  : 0;
+      f_inps  = alpha_inps  !== null ? round2(alpha_inps  * reddito_imponibile)  : 0;
     } else if (alpha !== null) {
-      // Fallback: distribuisci alpha legacy con proporzioni tipiche forfettario
-      // IVA: 0% (forfettario non applica IVA), IRPEF: 65%, INPS: 35%
-      // Queste proporzioni sono solo indicative se non configurato
-      f_irpef = round2(alpha * 0.65 * e_tax);
-      f_inps  = round2(alpha * 0.35 * e_tax);
+      f_irpef = round2(alpha * 0.65 * reddito_imponibile);
+      f_inps  = round2(alpha * 0.35 * reddito_imponibile);
       f_iva   = 0;
     }
 
-    const f  = round2(f_iva + f_irpef + f_inps) || (alpha !== null ? round2(alpha * e_tax) : 0);
+    const f  = round2(f_iva + f_irpef + f_inps) || (alpha !== null ? round2(alpha * reddito_imponibile) : 0);
     const lr = round2(bt - f);
 
     const result: LiquidityResult = {
-      period_start: normalizedPeriod,
-      b0, bt, e_total, u_total, e_tax, e_uncat,
+      period_start: normalizedPeriod, b0, bt, e_total, u_total, e_tax, e_uncat,
       f, lr, alpha, regime_key,
       lr_negative: lr < 0,
       has_uncategorized: uncat_count > 0,
       uncat_count,
       quality_warning: uncat_count > 0,
-      breakdown: {
-        f_iva, f_irpef, f_inps,
-        alpha_iva, alpha_irpef, alpha_inps,
-      },
+      breakdown: { f_iva, f_irpef, f_inps, alpha_iva, alpha_irpef, alpha_inps, ateco_coefficient, reddito_imponibile },
     };
 
     await supabase.from("audit_logs").insert({
       user_id: user.id,
       action: "liquidity_calculated",
       resource_type: "period",
-      metadata: { period_start: normalizedPeriod, lr, bt, alpha, f_iva, f_irpef, f_inps },
+      metadata: { period_start: normalizedPeriod, lr, bt, alpha, f_iva, f_irpef, f_inps, ateco_coefficient, reddito_imponibile, b0_missing: b0Missing },
     });
 
-    return new Response(
-      JSON.stringify({ success: true, data: result }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-    );
+    return new Response(JSON.stringify({ success: true, data: result }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 });
   } catch (err) {
     console.error("calculate-liquidity error:", err);
     return errorResponse(500, "Internal server error");
   }
 });
 
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
-function isValidDateString(s: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
-}
+function round2(n: number): number { return Math.round((n + Number.EPSILON) * 100) / 100; }
+function isValidDateString(s: string): boolean { return /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s)); }
 function errorResponse(status: number, message: string): Response {
-  return new Response(
-    JSON.stringify({ success: false, error: message }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" }, status }
-  );
+  return new Response(JSON.stringify({ success: false, error: message }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status });
 }
