@@ -16,6 +16,8 @@ const codeColors: Record<string, string> = {
   A3: "bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]",
   A4: "bg-secondary text-secondary-foreground",
   A5: "bg-destructive text-destructive-foreground",
+  SF1: "bg-blue-600 text-white",
+  SF2: "bg-blue-600 text-white",
 };
 
 export function AlertsBell() {
