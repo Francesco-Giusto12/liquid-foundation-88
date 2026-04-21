@@ -331,6 +331,7 @@ export type Database = {
           currency: string | null
           full_name: string
           id: string
+          onboarding_completed: boolean
           updated_at: string | null
         }
         Insert: {
@@ -339,6 +340,7 @@ export type Database = {
           currency?: string | null
           full_name: string
           id: string
+          onboarding_completed?: boolean
           updated_at?: string | null
         }
         Update: {
@@ -347,9 +349,51 @@ export type Database = {
           currency?: string | null
           full_name?: string
           id?: string
+          onboarding_completed?: boolean
           updated_at?: string | null
         }
         Relationships: []
+      }
+      tax_rates: {
+        Row: {
+          ateco_coefficient: number | null
+          created_at: string | null
+          id: string
+          inps: number | null
+          irpef: number | null
+          iva: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ateco_coefficient?: number | null
+          created_at?: string | null
+          id?: string
+          inps?: number | null
+          irpef?: number | null
+          iva?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ateco_coefficient?: number | null
+          created_at?: string | null
+          id?: string
+          inps?: number | null
+          irpef?: number | null
+          iva?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_rates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tax_regime_history: {
         Row: {
