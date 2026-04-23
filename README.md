@@ -1,3 +1,4 @@
+<img width="2240" height="1169" alt="Screenshot 2026-04-23 alle 12 45 48" src="https://github.com/user-attachments/assets/fcf7dd74-22da-4dae-b345-e639ea78080e" />
 💧 Liquidò — Liquidità Reale per Freelancer con Partita IVA
 Sai quanto puoi davvero spendere dopo aver ricevuto un pagamento? Liquidò calcola automaticamente la tua liquidità reale, sottraendo l'accantonamento fiscale dal saldo lordo. Niente più sorprese alla dichiarazione dei redditi.
 
@@ -64,5 +65,4 @@ Email: francescogiusto596@gmail.com
 📄 Licenza
 Questo progetto è distribuito sotto licenza MIT. Vedi il file LICENSE per i dettagli.
 
-"Non è quanto guadagni. È quanto puoi spendere."<img width="1631" height="1118" alt="Screenshot 2026-03-12 alle 15 45 36" src="https://github.com/user-attachments/assets/f3c234c1-84ec-4f29-a338-c14c12f6d879" />
-<img width="1631" height="1118" alt="Screenshot 2026-03-12 alle 15 45 36" src="https://github.com/user-attachments/assets/f90b82d7-2f1d-45e7-8287-15c75a88f21c" />
+"Non è quanto guadagni. È quanto puoi spendere."<img width="2240" height="1169" alt="Screenshot 2026-04-23 alle 12 45 48" src="https://github.com/user-attachments/assets/bee785e7-964a-4417-ad1a-ff961870c816" />
