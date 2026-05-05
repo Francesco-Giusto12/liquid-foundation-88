@@ -186,12 +186,12 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-2 min-w-0">
+            <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
             <Select value={periodStart} onValueChange={setSelectedPeriod}>
-              <SelectTrigger className="w-[180px] h-9">
+              <SelectTrigger className="w-[160px] sm:w-[180px] h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -204,12 +204,12 @@ export default function Dashboard() {
             </Select>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button asChild size="sm">
-            <Link to="/transactions/new"><Plus className="mr-1 h-4 w-4" />Nuova Transazione</Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild size="sm" className="flex-1 sm:flex-none min-w-0">
+            <Link to="/transactions/new"><Plus className="mr-1 h-4 w-4 shrink-0" /><span className="truncate">Nuova Transazione</span></Link>
           </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/accounts"><Plus className="mr-1 h-4 w-4" />Aggiungi Conto</Link>
+          <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-none min-w-0">
+            <Link to="/accounts"><Plus className="mr-1 h-4 w-4 shrink-0" /><span className="truncate">Aggiungi Conto</span></Link>
           </Button>
         </div>
       </div>
