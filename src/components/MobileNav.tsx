@@ -15,19 +15,19 @@ export function MobileNav() {
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card md:hidden">
-      <div className="flex items-center justify-around py-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card md:hidden pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-stretch justify-around py-2">
         {items.map((item) => (
           <Link
             key={item.title}
             to={item.url}
             className={cn(
-              "flex flex-col items-center gap-0.5 px-2 py-1 transition-colors min-w-[56px]",
+              "flex flex-1 min-w-0 flex-col items-center gap-0.5 px-1 py-1 transition-colors",
               isActive(item.url) ? "text-primary font-medium" : "text-muted-foreground"
             )}
           >
-            <item.icon className="h-5 w-5" />
-            <span className="text-[10px] leading-tight">{item.title}</span>
+            <item.icon className="h-5 w-5 shrink-0" />
+            <span className="text-[10px] leading-tight truncate max-w-full">{item.title}</span>
           </Link>
         ))}
       </div>
