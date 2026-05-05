@@ -12,7 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "react-router-dom";
-import { Plus, DollarSign, ShieldAlert, AlertTriangle, Info, Calendar, TrendingUp } from "lucide-react";
+import { Plus, Wallet, ShieldAlert, AlertTriangle, Info, Calendar, HandCoins, Briefcase } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
@@ -230,8 +230,8 @@ export default function Dashboard() {
             </div>
           )}
           {liquidityData.quality_warning && (
-            <div className="flex items-center gap-2 rounded-lg bg-[hsl(var(--warning))]/10 border border-[hsl(var(--warning))]/30 px-4 py-3 text-sm text-[hsl(var(--warning))]">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
+            <div className="flex items-center gap-2 rounded-lg bg-orange-50 border border-orange-200 px-4 py-3 text-sm text-orange-800 dark:bg-orange-950/30 dark:border-orange-900/50 dark:text-orange-300">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-orange-600 dark:text-orange-400" />
               <span>{liquidityData.uncat_count} entrate non categorizzate — accantonamento potrebbe essere sottostimato</span>
             </div>
           )}
@@ -240,10 +240,10 @@ export default function Dashboard() {
 
       {/* 3 KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="order-2 md:order-1">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <DollarSign className="h-5 w-5 text-primary" />
+            <div className="h-10 w-10 rounded-lg bg-[#1e3a5f] flex items-center justify-center shrink-0">
+              <Wallet className="h-5 w-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Saldo Totale</p>
@@ -259,10 +259,10 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-[hsl(var(--warning))]/30 bg-[hsl(var(--warning))]/5">
+        <Card className="order-3 md:order-2">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-lg bg-[hsl(var(--warning))]/15 flex items-center justify-center shrink-0">
-              <ShieldAlert className="h-5 w-5 text-[hsl(var(--warning))]" />
+            <div className="h-10 w-10 rounded-lg bg-[#1e3a5f] flex items-center justify-center shrink-0">
+              <Briefcase className="h-5 w-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground font-medium">Accantonamento Fiscale</p>
@@ -292,25 +292,28 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+            <svg className="h-8 w-16 text-muted-foreground/40 shrink-0" viewBox="0 0 64 32">
+              <polyline points="0,16 16,18 32,14 48,16 64,12" fill="none" stroke="currentColor" strokeWidth="2" />
+            </svg>
           </CardContent>
         </Card>
 
-        <Card className={liquidityData && liquidityData.lr < 0 ? "border-destructive bg-destructive/5" : "border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5"}>
+        <Card className={`order-1 md:order-3 border-0 ${liquidityData && liquidityData.lr < 0 ? "bg-destructive" : "bg-[#16a34a]"} text-white shadow-md`}>
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-lg bg-[hsl(var(--success))]/15 flex items-center justify-center shrink-0">
-              <TrendingUp className="h-5 w-5 text-[hsl(var(--success))]" />
+            <div className="h-10 w-10 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+              <HandCoins className="h-5 w-5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground font-medium">Liquidità Reale</p>
+              <p className="text-xs text-white/80 font-medium">Liquidità Reale</p>
               {loadingLiquidity ? (
-                <Skeleton className="h-7 w-28 mt-1" />
+                <Skeleton className="h-7 w-28 mt-1 bg-white/20" />
               ) : (
-                <p className={`text-xl font-bold tabular-nums ${liquidityData && liquidityData.lr < 0 ? "text-destructive" : "text-[hsl(var(--success))]"}`}>
+                <p className="text-xl font-bold tabular-nums text-white">
                   {formatCurrency(liquidityData?.lr ?? 0)}
                 </p>
               )}
             </div>
-            <svg className="h-8 w-16 text-[hsl(var(--success))]/40 shrink-0" viewBox="0 0 64 32">
+            <svg className="h-8 w-16 text-white/60 shrink-0" viewBox="0 0 64 32">
               <polyline points="0,24 16,20 32,16 48,10 64,6" fill="none" stroke="currentColor" strokeWidth="2" />
             </svg>
           </CardContent>

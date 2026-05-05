@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Conti", url: "/accounts", icon: Landmark },
-  { title: "Movimenti", url: "/transactions", icon: ArrowLeftRight },
+  { title: "Transazioni", url: "/transactions", icon: ArrowLeftRight },
   { title: "Budget", url: "/budgets", icon: Target },
   { title: "Impostazioni", url: "/settings", icon: Settings },
 ];
@@ -22,11 +22,12 @@ export function MobileNav() {
             key={item.title}
             to={item.url}
             className={cn(
-              "flex flex-col items-center gap-0.5 px-2 py-1 transition-colors",
-              isActive(item.url) ? "text-secondary font-medium" : "text-muted-foreground"
+              "flex flex-col items-center gap-0.5 px-2 py-1 transition-colors min-w-[56px]",
+              isActive(item.url) ? "text-primary font-medium" : "text-muted-foreground"
             )}
           >
             <item.icon className="h-5 w-5" />
+            <span className="text-[10px] leading-tight">{item.title}</span>
           </Link>
         ))}
       </div>
