@@ -15,8 +15,10 @@ import {
 import { Button } from "@/components/ui/button";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { showWarning, dismissWarning } = useInactivityTimeout(signOut);
+  const displayName = (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] || user?.email?.split("@")[0] || "";
+  const initial = (displayName || "?").charAt(0).toUpperCase();
 
   return (
     <SidebarProvider>
@@ -25,10 +27,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <AppSidebar />
         </div>
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-12 flex items-center justify-between border-b bg-card px-4 sticky top-0 z-40">
-            <div className="flex items-center">
+          <header className="h-14 flex items-center justify-between border-b bg-card px-4 sticky top-0 z-40">
+            <div className="flex items-center gap-2">
               <SidebarTrigger className="hidden md:flex" />
-              <span className="md:hidden font-bold text-primary text-lg">Liquidò</span>
+              <div className="md:hidden flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
+                  {initial}
+                </div>
+                {displayName && (
+                  <span className="text-sm">Ciao, <span className="font-semibold">{displayName}</span></span>
+                )}
+              </div>
             </div>
             <AlertsBell />
           </header>

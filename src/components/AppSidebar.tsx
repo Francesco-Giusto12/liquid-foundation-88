@@ -1,4 +1,4 @@
-import { LayoutDashboard, Landmark, ArrowLeftRight, Target, BarChart3, Settings, LogOut, Upload, MapPin } from "lucide-react";
+import { LayoutDashboard, Landmark, ArrowLeftRight, Target, BarChart3, Settings, LogOut, Upload, Droplet } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,7 +33,8 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const initial = (user?.user_metadata?.full_name || user?.email || "?").charAt(0).toUpperCase();
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
 
@@ -41,8 +42,9 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/60">
-            {!collapsed && <span className="font-bold text-sidebar-primary text-base">Liquidò</span>}
+          <SidebarGroupLabel className="h-12 flex items-center gap-2 text-sidebar-foreground/60">
+            <Droplet className="h-5 w-5 fill-[#16a34a] text-[#16a34a]" />
+            {!collapsed && <span className="font-bold text-sidebar-primary text-lg">Liquidò</span>}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -97,8 +99,10 @@ export function AppSidebar() {
           )}
           <SidebarMenuItem>
             <SidebarMenuButton onClick={signOut} className="hover:bg-sidebar-accent/50 text-sidebar-foreground/70">
-              <LogOut className="mr-2 h-4 w-4" />
-              {!collapsed && <span>Esci</span>}
+              <div className="mr-2 h-6 w-6 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-semibold text-sidebar-accent-foreground shrink-0">
+                {initial}
+              </div>
+              {!collapsed && <span className="flex items-center gap-2">Esci <LogOut className="h-3.5 w-3.5" /></span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
