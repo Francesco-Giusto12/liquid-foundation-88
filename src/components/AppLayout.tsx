@@ -27,15 +27,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <AppSidebar />
         </div>
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center justify-between border-b bg-card px-4 sticky top-0 z-40">
-            <div className="flex items-center gap-2">
+          <header className="h-14 flex items-center justify-between gap-2 border-b bg-card px-3 sm:px-4 sticky top-0 z-40">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <SidebarTrigger className="hidden md:flex" />
-              <div className="md:hidden flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
+              <div className="md:hidden flex items-center gap-2 min-w-0">
+                <div className="h-8 w-8 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
                   {initial}
                 </div>
                 {displayName && (
-                  <span className="text-sm">Ciao, <span className="font-semibold">{displayName}</span></span>
+                  <span className="text-sm truncate min-w-0">Ciao, <span className="font-semibold">{displayName}</span></span>
                 )}
               </div>
             </div>
