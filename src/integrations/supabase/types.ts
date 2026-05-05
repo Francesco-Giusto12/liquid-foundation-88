@@ -357,6 +357,7 @@ export type Database = {
       tax_rates: {
         Row: {
           ateco_coefficient: number | null
+          bollo_per_invoice: number | null
           created_at: string | null
           id: string
           inps: number | null
@@ -367,6 +368,7 @@ export type Database = {
         }
         Insert: {
           ateco_coefficient?: number | null
+          bollo_per_invoice?: number | null
           created_at?: string | null
           id?: string
           inps?: number | null
@@ -377,6 +379,7 @@ export type Database = {
         }
         Update: {
           ateco_coefficient?: number | null
+          bollo_per_invoice?: number | null
           created_at?: string | null
           id?: string
           inps?: number | null
