@@ -7,12 +7,12 @@ import { calculateLiquidity, evaluateAlerts } from "@/lib/edge-functions";
 import { format, startOfMonth, subMonths } from "date-fns";
 import { it } from "date-fns/locale";
 import { Upload, X, FileDown, Tag } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -152,24 +152,15 @@ export default function Transactions() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Transazioni</h1>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link to="/import"><Upload className="mr-1 h-4 w-4" />Importa CSV</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link to="/transactions/new">+ Nuova</Link>
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6 pb-24">
+      <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ color: "#1e3a5f" }}>
+        Transazioni
+      </h1>
 
       {/* Filter bar */}
-      <Card>
-        <CardContent className="p-3 flex flex-wrap gap-3 items-center">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Select value={filterMonth} onValueChange={setFilterMonth}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="h-12 rounded-xl bg-card border-border shadow-sm">
               <SelectValue placeholder="Mese" />
             </SelectTrigger>
             <SelectContent>
@@ -181,7 +172,7 @@ export default function Transactions() {
           </Select>
 
           <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="h-12 rounded-xl bg-card border-border shadow-sm">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
@@ -193,7 +184,7 @@ export default function Transactions() {
           </Select>
 
           <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="h-12 rounded-xl bg-card border-border shadow-sm">
               <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
@@ -210,7 +201,7 @@ export default function Transactions() {
           </Select>
 
           <Select value={filterAccount} onValueChange={setFilterAccount}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="h-12 rounded-xl bg-card border-border shadow-sm">
               <SelectValue placeholder="Conto" />
             </SelectTrigger>
             <SelectContent>
@@ -220,8 +211,7 @@ export default function Transactions() {
               ))}
             </SelectContent>
           </Select>
-        </CardContent>
-      </Card>
+      </div>
 
       {/* spacer for sticky bar */}
       {selected.size > 0 && <div className="h-20" />}
@@ -243,21 +233,21 @@ export default function Transactions() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
           <div className="overflow-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
+                <TableRow className="hover:bg-transparent border-b border-border">
+                  <TableHead className="w-10 pl-6">
                     <Checkbox
                       checked={selected.size === filtered.length && filtered.length > 0}
                       onCheckedChange={toggleAll}
                     />
                   </TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Descrizione</TableHead>
-                  <TableHead className="hidden md:table-cell">Categoria</TableHead>
-                  <TableHead className="text-right">Importo</TableHead>
+                  <TableHead className="font-semibold text-foreground">Data</TableHead>
+                  <TableHead className="font-semibold text-foreground">Descrizione</TableHead>
+                  <TableHead className="hidden md:table-cell font-semibold text-foreground">Categoria</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground pr-6">Importo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -267,17 +257,19 @@ export default function Transactions() {
                   return (
                     <TableRow
                       key={t.id}
-                      className="cursor-pointer"
+                      className="cursor-pointer border-b border-border/60 last:border-0"
                       onClick={() => setEditingRow(isEditing ? null : t.id)}
                     >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="pl-6" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selected.has(t.id)}
                           onCheckedChange={() => toggleSelect(t.id)}
                         />
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">{formatDate(t.date)}</TableCell>
-                      <TableCell className="text-sm max-w-[200px] truncate">
+                      <TableCell className="whitespace-nowrap text-sm tabular-nums text-foreground">
+                        {formatDate(t.date)}
+                      </TableCell>
+                      <TableCell className="text-sm max-w-[240px] truncate text-foreground">
                         {t.merchant || t.description || "—"}
                       </TableCell>
                       <TableCell className="hidden md:table-cell" onClick={(e) => e.stopPropagation()}>
@@ -303,23 +295,20 @@ export default function Transactions() {
                             </SelectContent>
                           </Select>
                         ) : cat ? (
-                          <Badge
-                            variant="outline"
-                            className="text-xs"
-                            style={{
-                              borderColor: cat.color || undefined,
-                              color: cat.color || undefined,
-                              backgroundColor: cat.color ? `${cat.color}15` : undefined,
-                            }}
+                          <span
+                            className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
+                            style={{ backgroundColor: cat.color || "#16a34a" }}
                           >
                             {cat.name}
-                          </Badge>
+                          </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground italic">Non categorizzata</span>
+                          <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-muted text-muted-foreground">
+                            Non categorizzata
+                          </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums font-medium text-sm">
-                        <span className={t.type === "income" ? "text-success" : t.type === "expense" ? "text-destructive" : ""}>
+                      <TableCell className="text-right tabular-nums font-semibold text-sm pr-6">
+                        <span className={t.type === "income" ? "text-success" : t.type === "expense" ? "text-destructive" : "text-foreground"}>
                           {t.type === "income" ? "+" : t.type === "expense" ? "-" : ""}
                           {formatCurrency(Math.abs(Number(t.amount)))}
                         </span>
@@ -330,8 +319,19 @@ export default function Transactions() {
               </TableBody>
             </Table>
           </div>
-        </Card>
+        </div>
       )}
+
+      {/* Floating Action Button */}
+      <Link
+        to="/transactions/new"
+        aria-label="Nuova transazione"
+        className="fixed bottom-24 right-6 md:bottom-8 md:right-8 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg hover:opacity-90 transition"
+        style={{ backgroundColor: "#1e3a5f" }}
+      >
+        <Plus className="h-6 w-6" />
+      </Link>
+
       {/* Sticky bulk action bar */}
       {selected.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 shadow-lg">
