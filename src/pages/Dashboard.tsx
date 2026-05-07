@@ -19,6 +19,7 @@ import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
 import { it } from "date-fns/locale";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { FiscalBreakdown } from "@/components/FiscalBreakdown";
+import { UpcomingDeadlines } from "@/components/UpcomingDeadlines";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -331,6 +332,8 @@ export default function Dashboard() {
           variant="compact"
         />
       )}
+
+      <UpcomingDeadlines />
 
       {/* Area Chart */}
       <Card>
