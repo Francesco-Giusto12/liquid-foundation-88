@@ -23,7 +23,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Landmark, CreditCard, Wallet, Briefcase, Plus, ExternalLink, Pencil } from "lucide-react";
+import { Landmark, CreditCard, Wallet, Briefcase, Plus, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const typeConfig: Record<string, { icon: React.ReactNode; label: string }> = {
   bank: { icon: <Landmark className="h-5 w-5" />, label: "Conto Corrente" },
@@ -56,6 +60,7 @@ export default function Accounts() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -143,6 +148,19 @@ export default function Accounts() {
       editForm.reset();
     },
     onError: () => toast.error("Errore nell'aggiornamento del conto"),
+  });
+
+  const deleteAccount = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("accounts").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      toast.success("Conto eliminato");
+      setDeletingId(null);
+    },
+    onError: () => toast.error("Errore nell'eliminazione del conto"),
   });
 
   const openEdit = (account: NonNullable<typeof accounts>[0]) => {
@@ -235,6 +253,9 @@ export default function Accounts() {
                     <Button variant="outline" size="sm" onClick={() => openEdit(account)}>
                       <Pencil className="h-3 w-3 mr-1" />Modifica
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => setDeletingId(account.id)} className="text-destructive hover:text-destructive">
+                      <Trash2 className="h-3 w-3 mr-1" />Elimina
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -303,6 +324,26 @@ export default function Accounts() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deletingId} onOpenChange={(o) => { if (!o) setDeletingId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare questo conto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'operazione è irreversibile. Le transazioni associate resteranno ma senza conto collegato.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); if (deletingId) deleteAccount.mutate(deletingId); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAccount.isPending ? "Eliminazione…" : "Elimina"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Account Dialog */}
       <Dialog open={!!editingId} onOpenChange={(o) => { if (!o) { setEditingId(null); editForm.reset(); } }}>
