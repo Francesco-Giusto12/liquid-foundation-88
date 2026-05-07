@@ -23,7 +23,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Landmark, CreditCard, Wallet, Briefcase, Plus, ExternalLink } from "lucide-react";
+import { Landmark, CreditCard, Wallet, Briefcase, Plus, ExternalLink, Pencil } from "lucide-react";
 
 const typeConfig: Record<string, { icon: React.ReactNode; label: string }> = {
   bank: { icon: <Landmark className="h-5 w-5" />, label: "Conto Corrente" },
@@ -55,10 +55,22 @@ export default function Accounts() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { name: "", type: "bank", iban: "", balance: 0 },
+  });
+
+  const editSchema = z.object({
+    name: z.string().trim().min(1, "Nome obbligatorio").max(100),
+    type: z.enum(["bank", "credit_card", "cash", "other"]),
+    balance: z.coerce.number().default(0),
+  });
+  type EditValues = z.infer<typeof editSchema>;
+  const editForm = useForm<EditValues>({
+    resolver: zodResolver(editSchema),
+    defaultValues: { name: "", type: "bank", balance: 0 },
   });
 
   const { data: accounts, isLoading } = useQuery({
@@ -114,6 +126,33 @@ export default function Accounts() {
     },
     onError: () => toast.error("Errore nella creazione del conto"),
   });
+
+  const updateAccount = useMutation({
+    mutationFn: async (values: EditValues) => {
+      if (!editingId) throw new Error("Nessun conto selezionato");
+      const { error } = await supabase
+        .from("accounts")
+        .update({ name: values.name, type: values.type, balance: values.balance })
+        .eq("id", editingId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      toast.success("Conto aggiornato");
+      setEditingId(null);
+      editForm.reset();
+    },
+    onError: () => toast.error("Errore nell'aggiornamento del conto"),
+  });
+
+  const openEdit = (account: NonNullable<typeof accounts>[0]) => {
+    editForm.reset({
+      name: account.name,
+      type: (account.type as EditValues["type"]) ?? "bank",
+      balance: Number(account.balance ?? 0),
+    });
+    setEditingId(account.id);
+  };
 
   const getBalance = (account: NonNullable<typeof accounts>[0]) => {
     const initial = Number(account.balance || 0);
@@ -187,11 +226,16 @@ export default function Accounts() {
                   {account.iban_last4 && (
                     <p className="text-xs text-muted-foreground">•••• •••• •••• {account.iban_last4}</p>
                   )}
-                  <Button asChild variant="ghost" size="sm" className="px-0 text-xs text-primary">
-                    <Link to={`/transactions?account=${account.id}`}>
-                      <ExternalLink className="h-3 w-3 mr-1" />Vedi transazioni
-                    </Link>
-                  </Button>
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <Button asChild variant="ghost" size="sm" className="px-0 text-xs text-primary">
+                      <Link to={`/transactions?account=${account.id}`}>
+                        <ExternalLink className="h-3 w-3 mr-1" />Vedi transazioni
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => openEdit(account)}>
+                      <Pencil className="h-3 w-3 mr-1" />Modifica
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -253,6 +297,59 @@ export default function Accounts() {
               <DialogFooter>
                 <Button type="submit" disabled={createAccount.isPending}>
                   {createAccount.isPending ? "Salvataggio…" : "Salva"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Account Dialog */}
+      <Dialog open={!!editingId} onOpenChange={(o) => { if (!o) { setEditingId(null); editForm.reset(); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifica Conto</DialogTitle>
+            <DialogDescription>Aggiorna nome, tipo o saldo iniziale.</DialogDescription>
+          </DialogHeader>
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit((v) => updateAccount.mutate(v))} className="space-y-4">
+              <FormField control={editForm.control} name="name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome conto</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={editForm.control} name="type" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="bank">Conto Corrente</SelectItem>
+                      <SelectItem value="credit_card">Carta di Credito</SelectItem>
+                      <SelectItem value="cash">Contanti</SelectItem>
+                      <SelectItem value="other">Altro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={editForm.control} name="balance" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Saldo iniziale (€)</FormLabel>
+                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <DialogFooter>
+                <Button type="submit" disabled={updateAccount.isPending}>
+                  {updateAccount.isPending ? "Salvataggio…" : "Salva modifiche"}
                 </Button>
               </DialogFooter>
             </form>
