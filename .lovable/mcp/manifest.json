@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://blbeocapuarckgqszhze.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "liquido-mcp",
+      "version": "0.1.0",
+      "title": "Liquidò MCP"
+    },
+    "tools": [
+      {
+        "name": "list_accounts",
+        "title": "List accounts",
+        "description": "List all financial accounts (conti) belonging to the signed-in user.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_transactions",
+        "title": "List transactions",
+        "description": "List the signed-in user's transactions, optionally filtered by date range, type, or account.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "description": "ISO date (YYYY-MM-DD) lower bound, inclusive."
+            },
+            "to": {
+              "type": "string",
+              "description": "ISO date (YYYY-MM-DD) upper bound, inclusive."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "income",
+                "expense"
+              ],
+              "description": "Filter by transaction type."
+            },
+            "account_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Filter by account UUID."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_transaction",
+        "title": "Create transaction",
+        "description": "Create a new transaction for the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "date": {
+              "type": "string",
+              "description": "ISO date YYYY-MM-DD."
+            },
+            "amount": {
+              "type": "number",
+              "description": "Transaction amount in EUR (positive number)."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "income",
+                "expense"
+              ],
+              "description": "Entrata (income) o uscita (expense)."
+            },
+            "description": {
+              "type": "string"
+            },
+            "merchant": {
+              "type": "string"
+            },
+            "account_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "category_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "date",
+            "amount",
+            "type"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
