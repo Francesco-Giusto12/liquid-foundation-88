@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +21,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [params] = useSearchParams();
+  const nextRaw = params.get("next");
+  const next = nextRaw && nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/dashboard";
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -39,7 +42,7 @@ export default function Login() {
       toast({ title: "Accesso fallito", description: "Email o password non validi. Riprova.", variant: "destructive" });
       return;
     }
-    navigate("/dashboard", { replace: true });
+    navigate(next, { replace: true });
   }
 
   return (
